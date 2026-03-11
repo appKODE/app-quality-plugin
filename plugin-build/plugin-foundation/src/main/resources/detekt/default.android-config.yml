@@ -1,0 +1,16 @@
+kode:
+  RouteWiringMethodNaming:
+    active: true
+  MapperFileNaming:
+    active: true
+  PayloadArgumentName:
+    active: true
+  UseSurfaceModifier:
+    active: true
+  UseOnStartEmit:
+    active: false
+  BlockingSqlDelightCall:
+    active: true
+  ImmutableDataClass:
+    active: true
+    ignoreDescendantsOf: [ "FlowEvent" ]

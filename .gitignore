@@ -1,0 +1,11 @@
+*.iml
+.gradle
+/local.properties
+/.idea/*
+!/.idea/codeStyles/
+!/.idea/dictionaries/
+!/.idea/inspectionProfiles/
+!/.idea/encodings.xml
+.DS_Store
+/build
+*.salive
