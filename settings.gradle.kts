@@ -17,7 +17,6 @@ dependencyResolutionManagement {
 
 rootProject.name = ("app-quality")
 
-includeBuild("shared")
 includeBuild("example-project")
 includeBuild("plugin-build")
 includeBuild("plugin-test")

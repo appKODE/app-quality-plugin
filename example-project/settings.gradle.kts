@@ -25,9 +25,3 @@ rootProject.name = ("ru.kode.android.app.quality.example-project")
 include("app")
 includeBuild("../plugin-build")
 includeBuild("../build-conventions")
-includeBuild("../shared") {
-    dependencySubstitution {
-        substitute(module("ru.kode.android:plugin-core"))
-            .using(project(":plugin-core"))
-    }
-}

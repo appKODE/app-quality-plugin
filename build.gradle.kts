@@ -17,7 +17,6 @@ tasks.register("clean", Delete::class.java) {
     delete(layout.buildDirectory)
     dependsOnRecursivelyByName(this, "clean")
     dependsOn(gradle.includedBuild("plugin-build").task(":clean"))
-    dependsOn(gradle.includedBuild("shared").task(":clean"))
 }
 
 tasks.register("preMerge") {
@@ -27,5 +26,4 @@ tasks.register("preMerge") {
     dependsOnRecursivelyByName(this, "detektDebug")
 
     dependsOn(gradle.includedBuild("plugin-build").task(":preMerge"))
-    dependsOn(gradle.includedBuild("shared").task(":preMerge"))
 }

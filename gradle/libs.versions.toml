@@ -1,13 +1,12 @@
 [versions]
-appQualityPlugin = "1.2.14"
-appQualityShared = "1.2.7"
+appQualityPlugin = "1.0.0"
 kotlin = "2.3.10"
 agp = "9.0.1"
 detekt = "1.23.8"
 ktlint = "12.1.0"
 firebaseAppdistribution = "5.2.1"
 grgit = "5.3.3"
-publish = "2.1.0"
+publish = "2.1.1"
 okhttp = "5.3.2"
 retrofit = "3.0.0"
 junit = "6.0.3"
@@ -16,7 +15,7 @@ kotlinxSerialization = "1.10.0"
 vanniktechMavenPublish = "0.36.0"
 ktlintCli = "0.46.0"
 detekt-compose-rules = "1.2.2"
-
+buildPublishCore = "1.2.7"
 
 [libraries]
 detekt-formatting = { module = "io.gitlab.arturbosch.detekt:detekt-formatting", version.ref = "detekt" }
@@ -30,7 +29,7 @@ grgitCore = { module = "org.ajoberstar.grgit:grgit-core", version.ref = "grgit" 
 grgitGradle = { module = "org.ajoberstar.grgit:grgit-gradle", version.ref = "grgit" }
 junitBom = { module = "org.junit:junit-bom", version.ref = "junit" }
 serializationJson = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "kotlinxSerialization" }
-plugin-core = { group = "ru.kode.android", name = "app-quality", version.ref = "appQualityShared" }
+plugin-core = { group = "ru.kode.android", name = "build-publish-novo-core", version.ref = "buildPublishCore" }
 
 kotlin-plugin = { module = "org.jetbrains.kotlin:kotlin-gradle-plugin", version.ref = "kotlin" }
 ktlint-plugin = { module = "org.jlleitschuh.gradle:ktlint-gradle", version.ref = "ktlint" }

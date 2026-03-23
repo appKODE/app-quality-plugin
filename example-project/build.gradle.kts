@@ -19,3 +19,8 @@ val dependsOnRecursivelyByName = { task: Task, name: String ->
         }
     }
 }
+
+appQualityFoundation {
+    verboseLogging.set(true)
+    ktlint.projectConfig.set(rootProject.file(".editorconfig"))
+}

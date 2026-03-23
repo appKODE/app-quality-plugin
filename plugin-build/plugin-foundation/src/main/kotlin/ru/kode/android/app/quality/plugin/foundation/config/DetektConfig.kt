@@ -8,7 +8,6 @@ import javax.inject.Inject
 abstract class DetektConfig
     @Inject
     constructor(objectFactory: ObjectFactory) {
-
         @get:Nested
         val kotlin: PlatformDetektConfig =
             objectFactory.newInstance(PlatformDetektConfig::class.java)
@@ -28,5 +27,4 @@ abstract class DetektConfig
         val additionallyExcludedPaths: ListProperty<String> =
             objectFactory.listProperty(String::class.java)
                 .convention(emptyList())
-
     }

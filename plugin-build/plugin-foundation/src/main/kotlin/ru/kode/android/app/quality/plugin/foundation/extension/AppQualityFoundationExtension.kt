@@ -4,16 +4,15 @@ import org.gradle.api.file.RegularFileProperty
 import org.gradle.api.model.ObjectFactory
 import org.gradle.api.provider.Property
 import org.gradle.api.tasks.Nested
-import ru.kode.android.app.quality.plugin.core.api.extension.AppQualityConfigurableExtension
 import ru.kode.android.app.quality.plugin.foundation.config.DetektConfig
 import ru.kode.android.app.quality.plugin.foundation.config.KtlintConfig
+import ru.kode.android.build.publish.plugin.core.api.extension.BuildPublishConfigurableExtension
 import javax.inject.Inject
 
 @Suppress("UnnecessaryAbstractClass")
 abstract class AppQualityFoundationExtension
     @Inject
-    constructor(objectFactory: ObjectFactory) : AppQualityConfigurableExtension() {
-
+    constructor(objectFactory: ObjectFactory) : BuildPublishConfigurableExtension() {
         /**
          * Enables verbose logging for the build and publish plugins.
          *
@@ -38,5 +37,4 @@ abstract class AppQualityFoundationExtension
         @get:Nested
         val detekt: DetektConfig =
             objectFactory.newInstance(DetektConfig::class.java)
-
-}
+    }

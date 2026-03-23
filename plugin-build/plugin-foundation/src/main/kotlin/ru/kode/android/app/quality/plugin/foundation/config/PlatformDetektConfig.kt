@@ -14,5 +14,4 @@ abstract class PlatformDetektConfig
             objectFactory.listProperty(String::class.java)
 
         val rulesPluginJar: RegularFileProperty = objectFactory.fileProperty()
-
     }
