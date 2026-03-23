@@ -78,13 +78,18 @@ private fun Project.configurePrePushCheck(
     project.tasks.register("prePushCheck") { task ->
         task.group = "verification"
 
-        task.dependsOn(gitHooksSetup)
-        task.dependsOn(ktlintFormat)
+        val detektTasks = subprojects.flatMap { subproject ->
+            subproject.tasks.withType(Detekt::class.java)
+        }
         task.dependsOn(
-            subprojects.flatMap { subproject ->
-                subproject.tasks.withType(Detekt::class.java)
-            }
+            gitHooksSetup,
+            ktlintFormat,
+            detektTasks
         )
+
+        detektTasks.forEach { detekt ->
+            detekt.mustRunAfter(gitHooksSetup, ktlintFormat)
+        }
     }
 }
 
@@ -126,7 +131,7 @@ private fun Project.configureKtlint(
         rootProject.file(".editorconfig")
     }
     val ktlintFallbackFile = layout.buildDirectory
-        .file("ktlint/default.editorconfig")
+        .file("ktlint/.editorconfig")
         .get()
     val ktlintDefaultFile = "ktlint/default.editorconfig"
 
@@ -175,9 +180,12 @@ private fun Project.configureKtlint(
                 throw GradleException(noEditorConfigFileMessage(editorConfig))
             }
 
+            val editorConfigPath = editorConfig.absolutePath.replace('\\', '/')
+
+            println("do first editor config path $editorConfigPath")
+
             task.args = listOf(
-                "--editorconfig",
-                editorConfig.absolutePath.replace('\\', '/'),
+                "--editorconfig=${editorConfigPath}",
                 "--relative"
             ) + ignoredSourcePatterns + kotlinSourcePatterns
         }
@@ -203,10 +211,13 @@ private fun Project.configureKtlint(
                 throw GradleException(noEditorConfigFileMessage(editorConfig))
             }
 
+            val editorConfigPath = editorConfig.absolutePath.replace('\\', '/')
+
+            println("do first editor config path $editorConfigPath")
+
             task.args = listOf(
                 "-F",
-                "--editorconfig",
-                editorConfig.absolutePath.replace('\\', '/'),
+                "--editorconfig=$editorConfigPath",
                 "--relative"
             ) + ignoredSourcePatterns + kotlinSourcePatterns
         }

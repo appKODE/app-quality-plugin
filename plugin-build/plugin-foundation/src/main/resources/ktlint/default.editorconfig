@@ -1,6 +1,13 @@
-[*.kt]
-indent_size=6
-max_line_length=120
-disabled_rules=filename
-insert_final_newline=true
-trim_trailing_whitespace=true
+root = true
+
+[*.{kt,kts}]
+indent_style = space
+indent_size = 2
+max_line_length = 120
+insert_final_newline = true
+trim_trailing_whitespace = true
+
+# ktlint specific rules
+ktlint_standard_filename = disabled
+ktlint_standard_no-wildcard-imports = disabled
+ktlint_standard_indent = enabled
