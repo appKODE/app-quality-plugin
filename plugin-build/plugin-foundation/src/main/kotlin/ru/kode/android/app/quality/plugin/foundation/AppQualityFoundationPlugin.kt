@@ -85,9 +85,8 @@ private fun Project.configurePrePushCheck(
     ktlintFormat: TaskProvider<JavaExec>,
     loggerProvider: Provider<LoggerService>,
 ) {
-    val logger = loggerProvider.get()
-
     project.tasks.register("prePushCheck") { task ->
+        task.usesService(loggerProvider)
         task.group = "verification"
 
         val detektIgnoredBuildTypes = detektConfig.ignoredBuildTypes.get()
@@ -100,8 +99,12 @@ private fun Project.configurePrePushCheck(
                     }
             }
 
-        if (detektTasks.isEmpty()) {
-            logger.quiet("Detekt tasks not found in subprojects, skipping Detekt")
+        task.doFirst {
+            val logger = loggerProvider.get()
+
+            if (detektTasks.isEmpty()) {
+                logger.quiet("Detekt tasks not found in subprojects, skipping Detekt")
+            }
         }
 
         task.dependsOn(
@@ -144,10 +147,8 @@ private fun Project.configureGitHooksSetup(extension: AppQualityFoundationExtens
 private fun Project.configureKtlint(
     versionCatalogName: Property<String>,
     config: KtlintConfig,
-    loggerProvider: Provider<LoggerService>,
+    loggerServiceProvider: Provider<LoggerService>,
 ): TaskProvider<JavaExec> {
-    val logger = loggerProvider.get()
-
     val ktlintCli = configurations.create("ktlintCli")
 
     val ktlintLibraryName = config.cliLibraryName.get()
@@ -169,7 +170,7 @@ private fun Project.configureKtlint(
             ktlintProjectConfigPath,
             ktlintFallbackFile,
             ktlintDefaultFile,
-            loggerProvider,
+            loggerServiceProvider,
         )
 
     dependencies.add(
@@ -192,6 +193,8 @@ private fun Project.configureKtlint(
     val kotlinSourcePatterns = kotlinSourcePatterns(additionalSourcePatterns)
 
     tasks.register("ktlintCheck", JavaExec::class.java) { task: JavaExec ->
+        task.usesService(loggerServiceProvider)
+
         task.group = "verification"
         task.description = "Run ktlint check on all Android modules"
 
@@ -203,15 +206,16 @@ private fun Project.configureKtlint(
             "--add-opens=java.base/java.util=ALL-UNNAMED",
         )
 
-        val editorConfig = editorConfigProvider.get().asFile
-
         task.doFirst {
+            val editorConfig = editorConfigProvider.get().asFile
+
             if (!editorConfig.exists()) {
                 throw GradleException(noEditorConfigFileMessage(editorConfig))
             }
 
             val editorConfigPath = editorConfig.absolutePath.replace('\\', '/')
 
+            val logger = loggerServiceProvider.get()
             logger.info("Use editor config for ktlintCheck = $editorConfigPath")
 
             task.args = listOf(
@@ -223,6 +227,8 @@ private fun Project.configureKtlint(
 
     val ktlintFormat =
         tasks.register("ktlintFormat", JavaExec::class.java) { task ->
+            task.usesService(loggerServiceProvider)
+
             task.group = "formatting"
             task.description = "Run ktlint format on all Android modules"
 
@@ -234,15 +240,16 @@ private fun Project.configureKtlint(
                 "--add-opens=java.base/java.util=ALL-UNNAMED",
             )
 
-            val editorConfig = editorConfigProvider.get().asFile
-
             task.doFirst {
+                val editorConfig = editorConfigProvider.get().asFile
+
                 if (!editorConfig.exists()) {
                     throw GradleException(noEditorConfigFileMessage(editorConfig))
                 }
 
                 val editorConfigPath = editorConfig.absolutePath.replace('\\', '/')
 
+                val logger = loggerServiceProvider.get()
                 logger.info("do first editor config path $editorConfigPath")
 
                 task.args = listOf(
@@ -268,10 +275,6 @@ private fun Project.configureProjectDetekt(
     extension: AppQualityFoundationExtension,
     loggerProvider: Provider<LoggerService>,
 ) {
-    val logger = loggerProvider.get()
-
-    logger.info("configure subproject $name")
-
     afterEvaluate {
         val isKotlin =
             pluginManager.hasPlugin("org.jetbrains.kotlin.jvm") ||
@@ -350,6 +353,7 @@ private fun Project.configureProjectDetekt(
                     it.projectConfig.convention(detektConfigProvider)
                 },
             )
+
         configureDetekt(
             extension.verboseLogging,
             extension.jvmTarget,
@@ -375,10 +379,6 @@ private fun Project.configureDetekt(
     additionalSourcePaths: ListProperty<String>,
     typeResolution: Property<Boolean>,
 ) {
-    val logger = loggerProvider.get()
-
-    logger.info("Configure detekt ${project.path}")
-
     val detektRulesPluginJars =
         configs.mapNotNull { config ->
             config.rulesPluginJar.orNull?.asFile
@@ -395,7 +395,6 @@ private fun Project.configureDetekt(
     val detektPlugins = configurations.getAt("detektPlugins")
 
     if (detektRulesPluginJars.isNotEmpty()) {
-        detektRulesPluginJars.forEach { logger.info("Apply jar file $it") }
         dependencies.add(
             detektPlugins.name,
             files(detektRulesPluginJars),
@@ -419,7 +418,6 @@ private fun Project.configureDetekt(
     }
 
     extensions.configure(DetektExtension::class.java) { detektExtension ->
-        logger.info("Configure detekt extension ${project.path}")
         if (detektProjectConfigPaths.isNotEmpty()) {
             detektExtension.config.from(detektProjectConfigPaths)
         }
@@ -439,12 +437,17 @@ private fun Project.configureDetekt(
             .map { it.target }
 
     tasks.withType(DetektCreateBaselineTask::class.java).configureEach { task ->
-        logger.info("Detekt baseline task ${task.name}")
+        task.usesService(loggerProvider)
         task.jvmTarget = jvmTargetProvider.get()
+
+        task.doFirst {
+            val logger = loggerProvider.get()
+            logger.info("Detekt baseline task ${task.name}")
+        }
     }
 
     tasks.withType(Detekt::class.java).configureEach { task ->
-        logger.info("Detekt task ${task.name}")
+        task.usesService(loggerProvider)
 
         val compileTask =
             tasks.withType(KotlinJvmCompile::class.java)
@@ -486,6 +489,11 @@ private fun Project.configureDetekt(
             it.html.required.set(false)
             it.txt.required.set(false)
             it.sarif.required.set(false)
+        }
+
+        task.doFirst {
+            val logger = loggerProvider.get()
+            logger.info("Detekt task ${task.name}")
         }
     }
 }
