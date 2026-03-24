@@ -6,7 +6,6 @@ plugins {
 
 dependencies {
     implementation(libs.agp)
-    implementation("ru.kode.android:plugin-foundation")
 
     testImplementation(libs.plugin.core)
     testImplementation(project(":utils"))

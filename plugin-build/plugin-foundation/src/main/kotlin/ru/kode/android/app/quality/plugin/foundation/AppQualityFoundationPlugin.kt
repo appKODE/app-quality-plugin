@@ -14,6 +14,7 @@ import org.gradle.api.provider.Provider
 import org.gradle.api.tasks.Exec
 import org.gradle.api.tasks.JavaExec
 import org.gradle.api.tasks.TaskProvider
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import org.jetbrains.kotlin.gradle.tasks.KotlinJvmCompile
 import ru.kode.android.app.quality.plugin.foundation.config.KtlintConfig
 import ru.kode.android.app.quality.plugin.foundation.config.PlatformDetektConfig
@@ -272,6 +273,7 @@ private fun Project.configureProjectDetekt(
                 pluginManager.hasPlugin("org.jetbrains.kotlin.plugin.compose")
 
         configureDetekt(
+            extension.jvmTarget,
             extension.versionCatalogName,
             configs =
                 listOfNotNull(
@@ -345,6 +347,7 @@ private fun Project.configureProjectDetekt(
 }
 
 private fun Project.configureDetekt(
+    jvmTarget: Property<JvmTarget>,
     versionCatalogName: Property<String>,
     configs: List<PlatformDetektConfig>,
     loggerProvider: Provider<LoggerService>,
@@ -402,14 +405,15 @@ private fun Project.configureDetekt(
     }
 
     val jvmTargetProvider =
-        provider {
+        (
             tasks.withType(KotlinJvmCompile::class.java)
                 .firstOrNull()
                 ?.compilerOptions
                 ?.jvmTarget
-                ?.orNull
-                ?.target
-        }
+                ?.convention(jvmTarget)
+                ?: jvmTarget
+        )
+            .map { it.target }
 
     tasks.withType(DetektCreateBaselineTask::class.java).configureEach { task ->
         logger.info("Detekt baseline task ${task.name}")

@@ -36,6 +36,13 @@ gradlePlugin {
 }
 
 publishing {
+    publications {
+        withType<MavenPublication> {
+            groupId = project.group.toString()
+            artifactId = base.archivesName.get()
+            version = project.version.toString()
+        }
+    }
     repositories {
         mavenLocal()
     }

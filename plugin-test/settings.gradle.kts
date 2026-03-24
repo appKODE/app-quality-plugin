@@ -25,12 +25,5 @@ rootProject.name = ("ru.kode.android.app.quality.plugin-test")
 
 include("foundation")
 include("utils")
-includeBuild("../plugin-build") {
-    dependencySubstitution {
-        substitute(module("ru.kode.android:plugin-foundation"))
-            .using(project(":plugin-foundation"))
-    }
-}
-
 includeBuild("../build-conventions")
 

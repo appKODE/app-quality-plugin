@@ -4,6 +4,7 @@ import org.gradle.api.file.RegularFileProperty
 import org.gradle.api.model.ObjectFactory
 import org.gradle.api.provider.Property
 import org.gradle.api.tasks.Nested
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import ru.kode.android.app.quality.plugin.foundation.config.DetektConfig
 import ru.kode.android.app.quality.plugin.foundation.config.KtlintConfig
 import ru.kode.android.build.publish.plugin.core.api.extension.BuildPublishConfigurableExtension
@@ -23,6 +24,10 @@ abstract class AppQualityFoundationExtension
         val verboseLogging: Property<Boolean> =
             objectFactory.property(Boolean::class.java)
                 .convention(false)
+
+        val jvmTarget: Property<JvmTarget> =
+            objectFactory.property(JvmTarget::class.java)
+                .convention(JvmTarget.JVM_17)
 
         val gitHooks: RegularFileProperty = objectFactory.fileProperty()
 
