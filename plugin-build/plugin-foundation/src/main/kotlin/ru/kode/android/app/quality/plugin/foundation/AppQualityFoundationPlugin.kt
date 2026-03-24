@@ -16,6 +16,7 @@ import org.gradle.api.tasks.JavaExec
 import org.gradle.api.tasks.TaskProvider
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import org.jetbrains.kotlin.gradle.tasks.KotlinJvmCompile
+import ru.kode.android.app.quality.plugin.foundation.config.DetektConfig
 import ru.kode.android.app.quality.plugin.foundation.config.KtlintConfig
 import ru.kode.android.app.quality.plugin.foundation.config.PlatformDetektConfig
 import ru.kode.android.app.quality.plugin.foundation.extension.AppQualityFoundationExtension
@@ -69,12 +70,18 @@ abstract class AppQualityFoundationPlugin : Plugin<Project> {
                 loggerServiceProvider,
             )
         configurePrintRequiredGradleJvmargs(project)
-        project.configurePrePushCheck(gitHooksSetup, ktlintFormat, loggerServiceProvider)
+        project.configurePrePushCheck(
+            gitHooksSetup,
+            extension.detekt,
+            ktlintFormat,
+            loggerServiceProvider,
+        )
     }
 }
 
 private fun Project.configurePrePushCheck(
     gitHooksSetup: TaskProvider<Exec>,
+    detektConfig: DetektConfig,
     ktlintFormat: TaskProvider<JavaExec>,
     loggerProvider: Provider<LoggerService>,
 ) {
@@ -83,9 +90,14 @@ private fun Project.configurePrePushCheck(
     project.tasks.register("prePushCheck") { task ->
         task.group = "verification"
 
+        val detektIgnoredBuildTypes = detektConfig.ignoredBuildTypes.get()
+
         val detektTasks =
             subprojects.flatMap { subproject ->
                 subproject.tasks.withType(Detekt::class.java)
+                    .matching { detektTask ->
+                        detektIgnoredBuildTypes.any { !detektTask.name.contains(it, ignoreCase = true) }
+                    }
             }
 
         if (detektTasks.isEmpty()) {
@@ -134,6 +146,8 @@ private fun Project.configureKtlint(
     config: KtlintConfig,
     loggerProvider: Provider<LoggerService>,
 ): TaskProvider<JavaExec> {
+    val logger = loggerProvider.get()
+
     val ktlintCli = configurations.create("ktlintCli")
 
     val ktlintLibraryName = config.cliLibraryName.get()
@@ -272,87 +286,94 @@ private fun Project.configureProjectDetekt(
             pluginManager.hasPlugin("org.jetbrains.compose") ||
                 pluginManager.hasPlugin("org.jetbrains.kotlin.plugin.compose")
 
+        val configs =
+            listOfNotNull(
+                extension.detekt.kotlin.takeIf { isKotlin }?.also {
+                    it.rulesPluginJar.convention {
+                        project.rootProject.file("libs/detekt-rules-1.4.0.jar")
+                    }
+                    it.rulesLibraryNames.convention(listOf("detekt.formatting"))
+
+                    val detektProjectFile =
+                        layout.projectDirectory
+                            .file("detekt-kotlin-config.yml")
+                    val detektFallbackFile =
+                        layout.buildDirectory
+                            .file("detekt/kotlin-config.yml")
+                            .get()
+                    val detektDefaultFile = "detekt/default.kotlin-config.yml"
+                    val detektConfigProvider =
+                        resolveFile(
+                            detektProjectFile,
+                            detektFallbackFile,
+                            detektDefaultFile,
+                            loggerProvider,
+                        )
+                    it.projectConfig.convention(detektConfigProvider)
+                },
+                extension.detekt.android.takeIf { isAndroid }?.also {
+                    val detektProjectFile =
+                        layout.projectDirectory
+                            .file("detekt-android-config.yml")
+                    val detektFallbackFile =
+                        layout.buildDirectory
+                            .file("detekt/android-config.yml")
+                            .get()
+                    val detektDefaultFile = "detekt/default.android-config.yml"
+                    val detektConfigProvider =
+                        resolveFile(
+                            detektProjectFile,
+                            detektFallbackFile,
+                            detektDefaultFile,
+                            loggerProvider,
+                        )
+                    it.projectConfig.convention(detektConfigProvider)
+                },
+                extension.detekt.compose.takeIf { isCompose }?.also {
+                    it.rulesLibraryNames.convention(listOf("detekt.compose.rules"))
+
+                    val detektProjectFile =
+                        layout.projectDirectory
+                            .file("detekt-compose-config.yml")
+                    val detektFallbackFile =
+                        layout.buildDirectory
+                            .file("detekt/compose-config.yml")
+                            .get()
+                    val detektDefaultFile = "detekt/default.compose-config.yml"
+                    val detektConfigProvider =
+                        resolveFile(
+                            detektProjectFile,
+                            detektFallbackFile,
+                            detektDefaultFile,
+                            loggerProvider,
+                        )
+                    it.projectConfig.convention(detektConfigProvider)
+                },
+            )
         configureDetekt(
+            extension.verboseLogging,
             extension.jvmTarget,
             extension.versionCatalogName,
-            configs =
-                listOfNotNull(
-                    extension.detekt.kotlin.takeIf { isKotlin }?.also {
-                        it.rulesPluginJar.convention {
-                            project.rootProject.file("libs/detekt-rules-1.4.0.jar")
-                        }
-                        it.rulesLibraryNames.convention(listOf("detekt.formatting"))
-
-                        val detektProjectFile =
-                            layout.projectDirectory
-                                .file("detekt-kotlin-config.yml")
-                        val detektFallbackFile =
-                            layout.buildDirectory
-                                .file("detekt/kotlin-config.yml")
-                                .get()
-                        val detektDefaultFile = "detekt/default.kotlin-config.yml"
-                        val detektConfigProvider =
-                            resolveFile(
-                                detektProjectFile,
-                                detektFallbackFile,
-                                detektDefaultFile,
-                                loggerProvider,
-                            )
-                        it.projectConfig.convention(detektConfigProvider)
-                    },
-                    extension.detekt.android.takeIf { isAndroid }?.also {
-                        val detektProjectFile =
-                            layout.projectDirectory
-                                .file("detekt-android-config.yml")
-                        val detektFallbackFile =
-                            layout.buildDirectory
-                                .file("detekt/android-config.yml")
-                                .get()
-                        val detektDefaultFile = "detekt/default.android-config.yml"
-                        val detektConfigProvider =
-                            resolveFile(
-                                detektProjectFile,
-                                detektFallbackFile,
-                                detektDefaultFile,
-                                loggerProvider,
-                            )
-                        it.projectConfig.convention(detektConfigProvider)
-                    },
-                    extension.detekt.compose.takeIf { isCompose }?.also {
-                        it.rulesLibraryNames.convention(listOf("detekt.compose.rules"))
-
-                        val detektProjectFile =
-                            layout.projectDirectory
-                                .file("detekt-compose-config.yml")
-                        val detektFallbackFile =
-                            layout.buildDirectory
-                                .file("detekt/compose-config.yml")
-                                .get()
-                        val detektDefaultFile = "detekt/default.compose-config.yml"
-                        val detektConfigProvider =
-                            resolveFile(
-                                detektProjectFile,
-                                detektFallbackFile,
-                                detektDefaultFile,
-                                loggerProvider,
-                            )
-                        it.projectConfig.convention(detektConfigProvider)
-                    },
-                ),
+            configs = configs,
             loggerProvider = loggerProvider,
             ignoredBuildTypes = extension.detekt.ignoredBuildTypes,
             additionallyExcludedPaths = extension.detekt.additionallyExcludedPaths,
+            additionalSourcePaths = extension.detekt.additionalSourcePaths,
+            typeResolution = extension.detekt.typeResolution,
         )
     }
 }
 
 private fun Project.configureDetekt(
+    verboseLogging: Property<Boolean>,
     jvmTarget: Property<JvmTarget>,
     versionCatalogName: Property<String>,
     configs: List<PlatformDetektConfig>,
     loggerProvider: Provider<LoggerService>,
     ignoredBuildTypes: ListProperty<String>,
     additionallyExcludedPaths: ListProperty<String>,
+    additionalSourcePaths: ListProperty<String>,
+    typeResolution: Property<Boolean>,
 ) {
     val logger = loggerProvider.get()
 
@@ -367,6 +388,7 @@ private fun Project.configureDetekt(
             config.projectConfig.orNull?.asFile
         }
     val detektAdditionallyExcludedPaths = additionallyExcludedPaths.get()
+    val detektAdditionalSourcePaths = additionalSourcePaths.get()
 
     pluginManager.apply(DetektPlugin::class.java)
 
@@ -401,6 +423,7 @@ private fun Project.configureDetekt(
         if (detektProjectConfigPaths.isNotEmpty()) {
             detektExtension.config.from(detektProjectConfigPaths)
         }
+        detektExtension.debug = verboseLogging.get()
         detektExtension.ignoredBuildTypes = ignoredBuildTypes.get()
     }
 
@@ -422,6 +445,15 @@ private fun Project.configureDetekt(
 
     tasks.withType(Detekt::class.java).configureEach { task ->
         logger.info("Detekt task ${task.name}")
+
+        val compileTask =
+            tasks.withType(KotlinJvmCompile::class.java)
+                .find { it.name.contains(task.name.removePrefix("detekt"), ignoreCase = true) }
+
+        if (compileTask != null && typeResolution.get()) {
+            task.classpath.setFrom(compileTask.libraries)
+        }
+
         task.jvmTarget = jvmTargetProvider.get()
 
         task.exclude { fileTreeElement ->
@@ -429,8 +461,25 @@ private fun Project.configureDetekt(
             val absolutePath = fileTreeElement.file.absolutePath
 
             absolutePath.contains("${sep}generated$sep") ||
-                detektAdditionallyExcludedPaths.any { it.contains(absolutePath) }
+                absolutePath.contains("${sep}build$sep") ||
+                detektAdditionallyExcludedPaths.any { absolutePath.contains("${sep}${it}$sep") }
         }
+
+        val sourcesPaths: List<String> =
+            listOf(
+                "src/main/kotlin",
+                "src/test/kotlin",
+                "src/commonMain/kotlin",
+                "src/commonTest/kotlin",
+                "src/desktopMain/kotlin",
+                "src/desktopTest/kotlin",
+                "src/iosMain/kotlin",
+                "src/iosTest/kotlin",
+                "src/androidMain/kotlin",
+                "src/androidTest/kotlin",
+            ) + detektAdditionalSourcePaths
+
+        task.source(files(sourcesPaths))
 
         task.reports {
             it.xml.required.set(false)
