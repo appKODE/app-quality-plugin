@@ -10,7 +10,6 @@ import org.gradle.api.Project
 import org.gradle.api.artifacts.ExternalModuleDependency
 import org.gradle.api.artifacts.FileCollectionDependency
 import org.gradle.api.attributes.Bundling
-import org.gradle.api.provider.Property
 import org.gradle.api.provider.Provider
 import org.gradle.api.tasks.Exec
 import org.gradle.api.tasks.JavaExec
@@ -56,17 +55,23 @@ abstract class AppQualityFoundationPlugin : Plugin<Project> {
                 it.parameters.bodyLogging.set(false)
             }
 
+        val versionCatalogName = project.provider { "libs" }
+
         project.extensions.create(
             LOGGER_SERVICE_EXTENSION_NAME,
             LoggerServiceExtension::class.java,
             loggerServiceProvider,
         )
 
-        project.configureSubprojectsDetekt(extension, loggerServiceProvider)
+        project.configureSubprojectsDetekt(
+            versionCatalogName,
+            extension,
+            loggerServiceProvider,
+        )
         val gitHooksSetup = project.configureGitHooksSetup(extension)
         val ktlintFormat =
             project.configureKtlint(
-                extension.versionCatalogName,
+                versionCatalogName,
                 extension.ktlint,
                 loggerServiceProvider,
             )
@@ -136,13 +141,24 @@ private fun Project.configureGitHooksSetup(extension: AppQualityFoundationExtens
 }
 
 private fun Project.configureKtlint(
-    versionCatalogName: Property<String>,
+    versionCatalogName: Provider<String>,
     config: KtlintConfig,
     loggerServiceProvider: Provider<LoggerService>,
 ): TaskProvider<JavaExec> {
-    val ktlintCli = configurations.create("ktlintCli")
+    val ktlintCliLibraryName = "ktlint-cli"
 
-    val ktlintLibraryName = config.cliLibraryName.get()
+    val ktlintCli = configurations.create("ktlintCli")
+    val ktlintLibraryName =
+        config.cliLibrary
+            .convention(
+                libs(versionCatalogName.get())
+                    .findLibrary(ktlintCliLibraryName.replace("-", "."))
+                    .orElseThrow {
+                        GradleException(noKtlintDependencyReferenceInLibsMessage(ktlintCliLibraryName))
+                    },
+            )
+            .get()
+
     val additionalIgnoredSourcePatterns = config.additionalIgnoredSourcePatterns.get()
     val additionalSourcePatterns = config.additionalSourcePatterns.get()
 
@@ -164,14 +180,7 @@ private fun Project.configureKtlint(
             loggerServiceProvider,
         )
 
-    dependencies.add(
-        ktlintCli.name,
-        libs(versionCatalogName.get())
-            .findLibrary(ktlintLibraryName)
-            .orElseThrow {
-                GradleException(noKtlintDependencyReferenceInLibsMessage(ktlintLibraryName))
-            },
-    )
+    dependencies.add(ktlintCli.name, ktlintLibraryName)
 
     ktlintCli.attributes { attrs ->
         attrs.attribute(
@@ -254,15 +263,17 @@ private fun Project.configureKtlint(
 }
 
 private fun Project.configureSubprojectsDetekt(
+    versionCatalogName: Provider<String>,
     extension: AppQualityFoundationExtension,
     loggerProvider: Provider<LoggerService>,
 ) {
     subprojects { subproject ->
-        subproject.configureProjectDetekt(extension, loggerProvider)
+        subproject.configureProjectDetekt(versionCatalogName, extension, loggerProvider)
     }
 }
 
 private fun Project.configureProjectDetekt(
+    versionCatalogName: Provider<String>,
     extension: AppQualityFoundationExtension,
     loggerProvider: Provider<LoggerService>,
 ) {
@@ -270,11 +281,10 @@ private fun Project.configureProjectDetekt(
         .forEach { pluginId ->
             pluginManager.apply(DetektPlugin::class.java)
             pluginManager.withPlugin(pluginId) {
-                val config = kotlinDetektConfig(extension, loggerProvider)
+                val config = kotlinDetektConfig(versionCatalogName, extension, loggerProvider)
                 configureDetekt(
                     loggerProvider = loggerProvider,
                     verboseLogging = extension.verboseLogging,
-                    versionCatalogName = extension.versionCatalogName,
                     config = config,
                     detektConfig = extension.detekt,
                 )
@@ -285,11 +295,10 @@ private fun Project.configureProjectDetekt(
         .forEach { pluginId ->
             pluginManager.apply(DetektPlugin::class.java)
             pluginManager.withPlugin(pluginId) {
-                val kotlinConfig = kotlinDetektConfig(extension, loggerProvider)
+                val kotlinConfig = kotlinDetektConfig(versionCatalogName, extension, loggerProvider)
                 configureDetekt(
                     loggerProvider = loggerProvider,
                     verboseLogging = extension.verboseLogging,
-                    versionCatalogName = extension.versionCatalogName,
                     config = kotlinConfig,
                     detektConfig = extension.detekt,
                 )
@@ -297,7 +306,6 @@ private fun Project.configureProjectDetekt(
                 configureDetekt(
                     loggerProvider = loggerProvider,
                     verboseLogging = extension.verboseLogging,
-                    versionCatalogName = extension.versionCatalogName,
                     config = androidConfig,
                     detektConfig = extension.detekt,
                 )
@@ -308,11 +316,10 @@ private fun Project.configureProjectDetekt(
         .forEach { pluginId ->
             pluginManager.apply(DetektPlugin::class.java)
             pluginManager.withPlugin(pluginId) {
-                val config = composeDetektConfig(extension, loggerProvider)
+                val config = composeDetektConfig(versionCatalogName, extension, loggerProvider)
                 configureDetekt(
                     loggerProvider = loggerProvider,
                     verboseLogging = extension.verboseLogging,
-                    versionCatalogName = extension.versionCatalogName,
                     config = config,
                     detektConfig = extension.detekt,
                 )
@@ -328,12 +335,18 @@ private fun Project.configureProjectDetekt(
 }
 
 private fun Project.composeDetektConfig(
+    versionCatalogName: Provider<String>,
     extension: AppQualityFoundationExtension,
     loggerProvider: Provider<LoggerService>,
 ): PlatformDetektConfig {
     return extension.detekt.compose.also {
-        it.rulesLibraryNames.convention(listOf("detekt.compose.rules"))
-
+        val composeRulesLib = "detekt-compose-rules"
+        it.rulesLibraries.convention(
+            libs(versionCatalogName.get())
+                .findLibrary(composeRulesLib.replace("-", "."))
+                .orElseThrow { GradleException(noDetektRulesDependencyReferenceInLibsMessage(composeRulesLib)) }
+                .map { lib -> listOf(lib) },
+        )
         val detektProjectFile =
             layout.projectDirectory
                 .file("detekt-compose-config.yml")
@@ -378,6 +391,7 @@ private fun Project.androidDetektConfig(
 }
 
 private fun Project.kotlinDetektConfig(
+    versionCatalogName: Provider<String>,
     extension: AppQualityFoundationExtension,
     loggerProvider: Provider<LoggerService>,
 ): PlatformDetektConfig {
@@ -386,8 +400,13 @@ private fun Project.kotlinDetektConfig(
             project.rootProject.file("libs/detekt-rules-1.4.0.jar")
         }
 
-        it.rulesLibraryNames.convention(listOf("detekt.formatting"))
-
+        val formatingLib = "detekt-formatting"
+        it.rulesLibraries.convention(
+            libs(versionCatalogName.get())
+                .findLibrary(formatingLib.replace("-", "."))
+                .orElseThrow { GradleException(noDetektRulesDependencyReferenceInLibsMessage(formatingLib)) }
+                .map { lib -> listOf(lib) },
+        )
         val detektProjectFile =
             layout.projectDirectory
                 .file("detekt-kotlin-config.yml")
@@ -410,14 +429,13 @@ private fun Project.kotlinDetektConfig(
 private fun Project.configureDetekt(
     loggerProvider: Provider<LoggerService>,
     verboseLogging: Provider<Boolean>,
-    versionCatalogName: Provider<String>,
     config: PlatformDetektConfig,
     detektConfig: DetektConfig,
 ) {
     val logger = loggerProvider.orNull
     val detektRulesPluginJars = config.rulesPluginJar.orNull
     val detektProjectConfigPath = config.projectConfig.orNull
-    val detektLibraries = config.rulesLibraryNames.get()
+    val detektLibraries = config.rulesLibraries.get()
 
     val detektPlugins = configurations.getAt("detektPlugins")
 
@@ -430,13 +448,7 @@ private fun Project.configureDetekt(
         }
     }
 
-    detektLibraries.forEach { detektLibraryName ->
-        val lib =
-            libs(versionCatalogName.get())
-                .findLibrary(detektLibraryName)
-                .orElseThrow { GradleException(noDetektRulesDependencyReferenceInLibsMessage(detektLibraryName)) }
-                .get()
-
+    detektLibraries.forEach { lib ->
         if (!detektPlugins.dependencies.any {
                 it is ExternalModuleDependency && it.group == lib.module.group && it.name == lib.module.name
             }
@@ -487,15 +499,14 @@ private fun Project.configureDetektTasks(
         )
             .map { it.target }
 
+    val typeResolution = detektConfig.typeResolution.get()
+    val additionallyExcludedPaths = detektConfig.additionallyExcludedPaths.get()
+    val additionalSourcePaths = detektConfig.additionalSourcePaths.get()
+
     tasks.withType(DetektCreateBaselineTask::class.java).configureEach { task ->
         task.usesService(loggerProvider)
         task.jvmTarget = jvmTargetProvider.get()
         task.debug.set(verboseLogging)
-
-        task.doFirst {
-            val logger = loggerProvider.get()
-            logger.info("Detekt baseline task ${task.name}")
-        }
     }
 
     tasks.withType(Detekt::class.java).configureEach { task ->
@@ -506,7 +517,7 @@ private fun Project.configureDetektTasks(
             tasks.withType(KotlinJvmCompile::class.java)
                 .find { it.name.contains(task.name.removePrefix("detekt"), ignoreCase = true) }
 
-        if (compileTask != null && detektConfig.typeResolution.get()) {
+        if (compileTask != null && typeResolution) {
             task.classpath.setFrom(compileTask.libraries)
         }
 
@@ -518,7 +529,7 @@ private fun Project.configureDetektTasks(
 
             absolutePath.contains("${sep}generated$sep") ||
                 absolutePath.contains("${sep}build$sep") ||
-                detektConfig.additionallyExcludedPaths.get().any { absolutePath.contains("${sep}${it}$sep") }
+                additionallyExcludedPaths.any { absolutePath.contains("${sep}${it}$sep") }
         }
 
         val sourcesPaths: List<String> =
@@ -533,7 +544,7 @@ private fun Project.configureDetektTasks(
                 "src/iosTest/kotlin",
                 "src/androidMain/kotlin",
                 "src/androidTest/kotlin",
-            ) + detektConfig.additionalSourcePaths.get()
+            ) + additionalSourcePaths
 
         task.source(files(sourcesPaths))
 

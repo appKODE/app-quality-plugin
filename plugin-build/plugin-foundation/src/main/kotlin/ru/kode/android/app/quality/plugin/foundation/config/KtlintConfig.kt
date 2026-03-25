@@ -1,5 +1,6 @@
 package ru.kode.android.app.quality.plugin.foundation.config
 
+import org.gradle.api.artifacts.MinimalExternalModuleDependency
 import org.gradle.api.file.RegularFileProperty
 import org.gradle.api.model.ObjectFactory
 import org.gradle.api.provider.ListProperty
@@ -11,9 +12,8 @@ abstract class KtlintConfig
     constructor(objectFactory: ObjectFactory) {
         val projectConfig: RegularFileProperty = objectFactory.fileProperty()
 
-        val cliLibraryName: Property<String> =
-            objectFactory.property(String::class.java)
-                .convention("ktlint.cli")
+        val cliLibrary: Property<MinimalExternalModuleDependency> =
+            objectFactory.property(MinimalExternalModuleDependency::class.java)
 
         val additionalSourcePatterns: ListProperty<String> =
             objectFactory.listProperty(String::class.java)

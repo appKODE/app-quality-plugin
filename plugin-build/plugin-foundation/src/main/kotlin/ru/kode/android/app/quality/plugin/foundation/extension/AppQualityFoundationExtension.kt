@@ -31,10 +31,6 @@ abstract class AppQualityFoundationExtension
 
         val gitHooks: RegularFileProperty = objectFactory.fileProperty()
 
-        val versionCatalogName: Property<String> =
-            objectFactory.property(String::class.java)
-                .convention("libs")
-
         @get:Nested
         val ktlint: KtlintConfig =
             objectFactory.newInstance(KtlintConfig::class.java)

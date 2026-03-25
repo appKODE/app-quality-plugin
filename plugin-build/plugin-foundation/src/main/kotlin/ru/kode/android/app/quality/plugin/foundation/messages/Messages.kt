@@ -65,23 +65,22 @@ fun mustBeUsedWithVersionMessage(version: AndroidPluginVersion): String {
  * Error message shown when the required dependency is not found in the version catalog.
  */
 fun noKtlintDependencyReferenceInLibsMessage(name: String): String {
-    val dependencyName = name.replace(",", "-")
     return """
         |
         |============================================================
         |          MISSING KTLINT DEPENDENCY IN VERSION CATALOG   
         |============================================================
-        | The required '$dependencyName' dependency is not defined in 
+        | The required '$name' dependency is not defined in 
         | your libs.versions.toml file.
         |
         | REQUIRED ACTION:
         |  1. Add the following entries to your version catalog:
         |
         |  [versions]
-        |  ktlintCli = "0.50.0"
+        |  $name = "0.50.0"
         |
         |  [libraries]
-        |  $dependencyName = { module = "com.pinterest:ktlint", version.ref = "ktlintCli" }
+        |  $name = { module = "com.pinterest:ktlint", version.ref = "$name" }
         |
         |  2. Sync your project with Gradle files
         |============================================================
@@ -89,23 +88,22 @@ fun noKtlintDependencyReferenceInLibsMessage(name: String): String {
 }
 
 fun noDetektRulesDependencyReferenceInLibsMessage(name: String): String {
-    val dependencyName = name.replace(",", "-")
     return """
         |
         |============================================================
         |          MISSING DETEKT DEPENDENCY IN VERSION CATALOG   
         |============================================================
-        | The required '$dependencyName' dependency is not defined in 
+        | The required '$name' dependency is not defined in 
         | your libs.versions.toml file.
         |
         | REQUIRED ACTION:
         |  1. Add the following entries to your version catalog:
         |
         |  [versions]
-        |  <detektLibName> = "1.4.0" // replace with real name and use in ref value
+        |  detektLibName = "1.4.0" // replace with real name and version and use in ref value
         |
         |  [libraries]
-        |  $dependencyName = { module = "ru.kode:detekt-rules-compose", version.ref = "<detektLibName>" }
+        |  $name = { module = "ru.kode:detekt-rules-compose", version.ref = "detektLibName" }
         |
         |  2. Sync your project with Gradle files
         |============================================================
