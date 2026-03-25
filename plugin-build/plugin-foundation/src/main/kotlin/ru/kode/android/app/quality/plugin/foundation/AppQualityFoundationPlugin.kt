@@ -86,21 +86,26 @@ private fun Project.configurePrePushCheck(
     ktlintFormat: TaskProvider<JavaExec>,
     loggerProvider: Provider<LoggerService>,
 ) {
+    val detektIgnoredBuildTypes = detektConfig.ignoredBuildTypes.get()
+
+    val detektTasks =
+        subprojects.flatMap { subproject ->
+            subproject.tasks.withType(Detekt::class.java)
+                .matching { task ->
+                    detektIgnoredBuildTypes.none { task.name.contains(it, ignoreCase = true) }
+                }
+        }
+
     tasks.register("prePushCheck") { task ->
         task.usesService(loggerProvider)
         group = "verification"
 
         task.dependsOn(gitHooksSetup)
         task.dependsOn(ktlintFormat)
+        task.dependsOn(detektTasks)
 
-        subprojects.forEach { subproject ->
-            subproject.tasks.withType(Detekt::class.java).configureEach { detektTask ->
-                val ignored = detektConfig.ignoredBuildTypes.get()
-                if (ignored.none { detektTask.name.contains(it, ignoreCase = true) }) {
-                    task.dependsOn(detektTask)
-                    detektTask.mustRunAfter(gitHooksSetup, ktlintFormat)
-                }
-            }
+        detektTasks.forEach { detekt ->
+            detekt.mustRunAfter(gitHooksSetup, ktlintFormat)
         }
     }
 }
@@ -236,7 +241,7 @@ private fun Project.configureKtlint(
                 val editorConfigPath = editorConfig.absolutePath.replace('\\', '/')
 
                 val logger = loggerServiceProvider.get()
-                logger.info("do first editor config path $editorConfigPath")
+                logger.info("Use editor config for ktlintFormat = $editorConfigPath")
 
                 task.args = listOf(
                     "-F",
@@ -537,11 +542,6 @@ private fun Project.configureDetektTasks(
             it.html.required.set(false)
             it.txt.required.set(false)
             it.sarif.required.set(false)
-        }
-
-        task.doFirst {
-            val logger = loggerProvider.get()
-            logger.info("Detekt task ${task.name}")
         }
     }
 }
