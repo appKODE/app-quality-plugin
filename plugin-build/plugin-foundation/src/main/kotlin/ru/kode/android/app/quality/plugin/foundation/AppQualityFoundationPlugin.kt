@@ -69,16 +69,23 @@ abstract class AppQualityFoundationPlugin : Plugin<Project> {
             loggerServiceProvider,
         )
         val gitHooksSetup = project.configureGitHooksSetup(extension)
-        val ktlintFormat =
+        val (ktlintCheck, ktlintFormat) =
             project.configureKtlint(
                 versionCatalogName,
                 extension.ktlint,
                 loggerServiceProvider,
             )
         configurePrintRequiredGradleJvmargs(project)
+        val detektTasks = project.detektTasks(extension.detekt)
+        project.configurePipelineCheck(
+            gitHooksSetup,
+            detektTasks,
+            ktlintCheck,
+            loggerServiceProvider,
+        )
         project.configurePrePushCheck(
             gitHooksSetup,
-            extension.detekt,
+            detektTasks,
             ktlintFormat,
             loggerServiceProvider,
         )
@@ -87,20 +94,10 @@ abstract class AppQualityFoundationPlugin : Plugin<Project> {
 
 private fun Project.configurePrePushCheck(
     gitHooksSetup: TaskProvider<Exec>,
-    detektConfig: DetektConfig,
+    detektTasks: List<Detekt>,
     ktlintFormat: TaskProvider<JavaExec>,
     loggerProvider: Provider<LoggerService>,
 ) {
-    val detektIgnoredBuildTypes = detektConfig.ignoredBuildTypes.get()
-
-    val detektTasks =
-        subprojects.flatMap { subproject ->
-            subproject.tasks.withType(Detekt::class.java)
-                .matching { task ->
-                    detektIgnoredBuildTypes.none { task.name.contains(it, ignoreCase = true) }
-                }
-        }
-
     tasks.register("prePushCheck") { task ->
         task.usesService(loggerProvider)
         group = "verification"
@@ -112,6 +109,36 @@ private fun Project.configurePrePushCheck(
         detektTasks.forEach { detekt ->
             detekt.mustRunAfter(gitHooksSetup, ktlintFormat)
         }
+    }
+}
+
+private fun Project.configurePipelineCheck(
+    gitHooksSetup: TaskProvider<Exec>,
+    detektTasks: List<Detekt>,
+    ktlintCheck: TaskProvider<JavaExec>,
+    loggerProvider: Provider<LoggerService>,
+) {
+    tasks.register("pipelineCheck") { task ->
+        task.usesService(loggerProvider)
+        group = "verification"
+
+        task.dependsOn(gitHooksSetup)
+        task.dependsOn(ktlintCheck)
+        task.dependsOn(detektTasks)
+
+        detektTasks.forEach { detekt ->
+            detekt.mustRunAfter(gitHooksSetup, ktlintCheck)
+        }
+    }
+}
+
+private fun Project.detektTasks(detektConfig: DetektConfig): List<Detekt> {
+    val detektIgnoredBuildTypes = detektConfig.ignoredBuildTypes.get()
+    return subprojects.flatMap { subproject ->
+        subproject.tasks.withType(Detekt::class.java)
+            .matching { task ->
+                detektIgnoredBuildTypes.none { task.name.contains(it, ignoreCase = true) }
+            }
     }
 }
 
@@ -144,7 +171,7 @@ private fun Project.configureKtlint(
     versionCatalogName: Provider<String>,
     config: KtlintConfig,
     loggerServiceProvider: Provider<LoggerService>,
-): TaskProvider<JavaExec> {
+): KtlintTasks {
     val ktlintCliLibraryName = "ktlint-cli"
 
     val ktlintCli = configurations.create("ktlintCli")
@@ -192,38 +219,39 @@ private fun Project.configureKtlint(
     val ignoredSourcePatterns = ignoredSourcePatterns(additionalIgnoredSourcePatterns)
     val kotlinSourcePatterns = kotlinSourcePatterns(additionalSourcePatterns)
 
-    tasks.register("ktlintCheck", JavaExec::class.java) { task: JavaExec ->
-        task.usesService(loggerServiceProvider)
+    val ktlintCheck =
+        tasks.register("ktlintCheck", JavaExec::class.java) { task: JavaExec ->
+            task.usesService(loggerServiceProvider)
 
-        task.group = "verification"
-        task.description = "Run ktlint check on all Android modules"
+            task.group = "verification"
+            task.description = "Run ktlint check on all Android modules"
 
-        task.classpath = ktlintCli
-        task.mainClass.set("com.pinterest.ktlint.Main")
+            task.classpath = ktlintCli
+            task.mainClass.set("com.pinterest.ktlint.Main")
 
-        task.jvmArgs(
-            "--add-opens=java.base/java.lang=ALL-UNNAMED",
-            "--add-opens=java.base/java.util=ALL-UNNAMED",
-        )
+            task.jvmArgs(
+                "--add-opens=java.base/java.lang=ALL-UNNAMED",
+                "--add-opens=java.base/java.util=ALL-UNNAMED",
+            )
 
-        task.doFirst {
-            val editorConfig = editorConfigProvider.get().asFile
+            task.doFirst {
+                val editorConfig = editorConfigProvider.get().asFile
 
-            if (!editorConfig.exists()) {
-                throw GradleException(noEditorConfigFileMessage(editorConfig))
+                if (!editorConfig.exists()) {
+                    throw GradleException(noEditorConfigFileMessage(editorConfig))
+                }
+
+                val editorConfigPath = editorConfig.absolutePath.replace('\\', '/')
+
+                val logger = loggerServiceProvider.get()
+                logger.info("Use editor config for ktlintCheck = $editorConfigPath")
+
+                task.args = listOf(
+                    "--editorconfig=$editorConfigPath",
+                    "--relative",
+                ) + ignoredSourcePatterns + kotlinSourcePatterns
             }
-
-            val editorConfigPath = editorConfig.absolutePath.replace('\\', '/')
-
-            val logger = loggerServiceProvider.get()
-            logger.info("Use editor config for ktlintCheck = $editorConfigPath")
-
-            task.args = listOf(
-                "--editorconfig=$editorConfigPath",
-                "--relative",
-            ) + ignoredSourcePatterns + kotlinSourcePatterns
         }
-    }
 
     val ktlintFormat =
         tasks.register("ktlintFormat", JavaExec::class.java) { task ->
@@ -259,7 +287,10 @@ private fun Project.configureKtlint(
                 ) + ignoredSourcePatterns + kotlinSourcePatterns
             }
         }
-    return ktlintFormat
+    return KtlintTasks(
+        check = ktlintCheck,
+        format = ktlintFormat,
+    )
 }
 
 private fun Project.configureSubprojectsDetekt(
@@ -556,3 +587,8 @@ private fun Project.configureDetektTasks(
         }
     }
 }
+
+private data class KtlintTasks(
+    val check: TaskProvider<JavaExec>,
+    val format: TaskProvider<JavaExec>,
+)
