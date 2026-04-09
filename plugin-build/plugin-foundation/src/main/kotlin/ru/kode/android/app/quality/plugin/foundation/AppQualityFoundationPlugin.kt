@@ -9,7 +9,11 @@ import org.gradle.api.Plugin
 import org.gradle.api.Project
 import org.gradle.api.artifacts.ExternalModuleDependency
 import org.gradle.api.artifacts.FileCollectionDependency
+import org.gradle.api.artifacts.type.ArtifactTypeDefinition
 import org.gradle.api.attributes.Bundling
+import org.gradle.api.attributes.Category
+import org.gradle.api.attributes.LibraryElements
+import org.gradle.api.attributes.Usage
 import org.gradle.api.provider.Provider
 import org.gradle.api.tasks.Exec
 import org.gradle.api.tasks.JavaExec
@@ -211,8 +215,24 @@ private fun Project.configureKtlint(
 
     ktlintCli.attributes { attrs ->
         attrs.attribute(
+            ArtifactTypeDefinition.ARTIFACT_TYPE_ATTRIBUTE,
+            ArtifactTypeDefinition.JAR_TYPE,
+        )
+        attrs.attribute(
+            Usage.USAGE_ATTRIBUTE,
+            objects.named(Usage::class.java, Usage.JAVA_RUNTIME),
+        )
+        attrs.attribute(
             Bundling.BUNDLING_ATTRIBUTE,
-            objects.named(Bundling::class.java, Bundling.EXTERNAL),
+            objects.named(Bundling::class.java, Bundling.SHADOWED),
+        )
+        attrs.attribute(
+            LibraryElements.LIBRARY_ELEMENTS_ATTRIBUTE,
+            objects.named(LibraryElements::class.java, LibraryElements.JAR),
+        )
+        attrs.attribute(
+            Category.CATEGORY_ATTRIBUTE,
+            objects.named(Category::class.java, Category.LIBRARY),
         )
     }
 

@@ -27,11 +27,11 @@ The plugin looks up these aliases in the `libs` catalog:
 ```toml
 [versions]
 detekt = "1.23.8"
-ktlintCli = "0.46.0"
+ktlintCli = "1.8.0"
 detektComposeRules = "1.2.2"
 
 [libraries]
-ktlint-cli = { module = "com.pinterest:ktlint", version.ref = "ktlintCli" }
+ktlint-cli = { module = "com.pinterest:ktlint-cli", version.ref = "ktlintCli" }
 detekt-formatting = { module = "io.gitlab.arturbosch.detekt:detekt-formatting", version.ref = "detekt" }
 detekt-compose-rules = { module = "ru.kode:detekt-rules-compose", version.ref = "detektComposeRules" }
 ```
@@ -58,7 +58,7 @@ In root `build.gradle.kts`:
 
 ```kotlin
 plugins {
-    id("ru.kode.android.app-quality.foundation") version "1.0.7"
+    id("ru.kode.android.app-quality.foundation") version "1.0.8"
 }
 ```
 

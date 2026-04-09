@@ -9,3 +9,28 @@ class MainActivity : AppCompatActivity() {
     setContentView(R.layout.activity_main)
   }
 }
+
+fun submit(
+  selectedId: SelectedId,
+  localReviewIsExists: Boolean,
+) {
+  when (selectedId) {
+    is SelectedId.ReviewId -> {
+      println("local review is not exists")
+    }
+
+    is SelectedId.ReviewGeoId if localReviewIsExists -> {
+      println("local review is exists")
+    }
+
+    else -> {
+      println("local review is not exists")
+    }
+  }
+}
+
+sealed class SelectedId {
+  object ReviewId : SelectedId()
+
+  object ReviewGeoId : SelectedId()
+}
