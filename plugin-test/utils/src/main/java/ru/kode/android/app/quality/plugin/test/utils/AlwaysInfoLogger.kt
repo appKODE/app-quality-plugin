@@ -12,7 +12,10 @@ class AlwaysInfoLogger : Logger by Logging.getLogger("AppQualityTest") {
         println("[WARN] $message")
     }
 
-    override fun error(message: String?, exception: Throwable?) {
+    override fun error(
+        message: String?,
+        exception: Throwable?,
+    ) {
         println("[ERROR] $message, ${exception?.message}")
     }
 

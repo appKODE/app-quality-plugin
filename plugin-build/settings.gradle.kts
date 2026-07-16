@@ -23,5 +23,6 @@ dependencyResolutionManagement {
 
 rootProject.name = ("ru.kode.android.app.quality.plugin")
 
-include(":plugin-foundation")
+include(":app-quality-foundation")
+project(":app-quality-foundation").projectDir = file("plugin-foundation")
 includeBuild("../build-conventions")

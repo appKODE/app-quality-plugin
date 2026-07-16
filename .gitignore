@@ -9,3 +9,7 @@
 .DS_Store
 /build
 *.salive
+CLAUDE.md
+AGENTS.md
+.claude
+.omc

@@ -62,50 +62,65 @@ fun mustBeUsedWithVersionMessage(version: AndroidPluginVersion): String {
 }
 
 /**
- * Error message shown when the required dependency is not found in the version catalog.
+ * Error message shown when a file configured in a dependency slot does not exist on disk.
+ * [slot] is the fully qualified slot path, e.g. `detekt.kotlin.rules` or `ktlint.cli` — it is
+ * the only locus the user gets, since the failure surfaces from dependency resolution.
  */
-fun noKtlintDependencyReferenceInLibsMessage(name: String): String {
+fun missingDependencyFileMessage(
+    file: File,
+    slot: String,
+): String {
     return """
         |
         |============================================================
-        |          MISSING KTLINT DEPENDENCY IN VERSION CATALOG   
+        |             MISSING DEPENDENCY FILE
         |============================================================
-        | The required '$name' dependency is not defined in 
-        | your libs.versions.toml file.
+        | A file configured in the '$slot' slot does not exist:
         |
-        | REQUIRED ACTION:
-        |  1. Add the following entries to your version catalog:
+        |   ${file.absolutePath}
         |
-        |  [versions]
-        |  $name = "0.50.0"
+        | FIX — any one of:
+        |  1. Put the jar at that path
+        |  2. Fix the path in the root build script:
         |
-        |  [libraries]
-        |  $name = { module = "com.pinterest:ktlint", version.ref = "$name" }
+        |     appQualityFoundation {
+        |         $slot {
+        |             from(files("path/to/your.jar"))
+        |         }
+        |     }
         |
-        |  2. Sync your project with Gradle files
+        |  3. Remove the entry if it is not needed
         |============================================================
         """.trimMargin()
 }
 
-fun noDetektRulesDependencyReferenceInLibsMessage(name: String): String {
+/**
+ * Error message shown when a resolved detekt config activates the plugin's bundled `kode:`
+ * rule set but no dependency is wired into the matching `detekt.<platform>.rules` slot.
+ */
+fun missingKodeRuleSetDependencyMessage(
+    platform: String,
+    configFile: File,
+): String {
     return """
         |
         |============================================================
-        |          MISSING DETEKT DEPENDENCY IN VERSION CATALOG   
+        |          MISSING DEPENDENCY FOR 'kode' RULE SET
         |============================================================
-        | The required '$name' dependency is not defined in 
-        | your libs.versions.toml file.
+        | The detekt config activates the plugin's custom 'kode'
+        | rule set (e.g. RouteWiringMethodNaming), but no dependency
+        | is wired into 'detekt.$platform.rules':
         |
-        | REQUIRED ACTION:
-        |  1. Add the following entries to your version catalog:
+        |   ${configFile.absolutePath}
         |
-        |  [versions]
-        |  detektLibName = "1.4.0" // replace with real name and version and use in ref value
+        | FIX — configure the slot in the root build script:
         |
-        |  [libraries]
-        |  $name = { module = "ru.kode:detekt-rules-compose", version.ref = "detektLibName" }
-        |
-        |  2. Sync your project with Gradle files
+        |     appQualityFoundation {
+        |         detekt.$platform.rules {
+        |             from(files("libs/detekt-rules-1.4.0.jar")) // checked-in jar
+        |             // from(yourCatalog.detekt.rulesCompose)   // or a catalog alias
+        |         }
+        |     }
         |============================================================
         """.trimMargin()
 }
@@ -117,15 +132,21 @@ fun noEditorConfigFileMessage(editorConfig: File): String {
     return """
         |
         |============================================================
-        |                MISSING CONFIGURATION FILE   
+        |                MISSING CONFIGURATION FILE
         |============================================================
-        | The required configuration file '${editorConfig.name}' 
-        | was not found in the project root.
+        | The ktlint configuration file was not found:
         |
-        | REQUIRED ACTION:
-        |  1. Create a '${editorConfig.name}' file in your project 
-        |     root directory.
-        |  2. Configure your quality rules in this file.
+        |   ${editorConfig.absolutePath}
+        |
+        | FIX — any one of:
+        |  1. Create '${editorConfig.name}' at that path and configure
+        |     your formatting rules in it
+        |  2. Point the plugin at an existing file in the root
+        |     build script:
+        |
+        |     appQualityFoundation {
+        |         ktlint.projectConfig.set(rootProject.layout.projectDirectory.file("config/.editorconfig"))
+        |     }
         |============================================================
         """.trimMargin()
 }

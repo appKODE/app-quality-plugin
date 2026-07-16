@@ -35,9 +35,6 @@ console-reports:
     - 'FindingsReport'
     - 'FileBasedFindingsReport'
 
-output-reports:
-  active: false
-
 comments:
   active: true
   AbsentOrWrongFileLicense:

@@ -1,18 +1,23 @@
 plugins {
     id("kotlin-convention")
     id("java-gradle-plugin")
-    id("com.google.devtools.ksp")
 }
 
 dependencies {
     implementation(libs.agp)
+    implementation(libs.plugin.foundation)
+    // Lets generated test projects apply org.jetbrains.kotlin.plugin.compose from the
+    // injected classpath; the version must match the kotlin-gradle-plugin resolved there.
+    implementation(libs.compose.compiler.plugin)
+    // Lets generated test projects apply org.jetbrains.compose (JetBrains Compose
+    // Multiplatform) from the injected classpath.
+    implementation(libs.compose.multiplatform.plugin)
 
     testImplementation(libs.plugin.core)
     testImplementation(project(":utils"))
 
     testImplementation(gradleApi())
     testImplementation(libs.grgitCore)
-    testImplementation(libs.grgitGradle)
 
     testImplementation(gradleTestKit())
     testImplementation(platform(libs.junitBom))

@@ -16,6 +16,5 @@ dependencies {
   //  can be applied in a precompiled script plugin"
   implementation libs.kotlin.plugin
   implementation libs.detekt.plugin
-  implementation libs.ksp.plugin
   implementation libs.ktlint.plugin
 }
