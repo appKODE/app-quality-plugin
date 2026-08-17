@@ -2,7 +2,6 @@
 plugins {
     alias(libs.plugins.publish) apply false
     alias(libs.plugins.kotlin) apply false
-    alias(libs.plugins.grgit) apply false
 }
 
 val dependsOnRecursivelyByName = { task: Task, name: String ->

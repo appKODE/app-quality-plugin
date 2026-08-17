@@ -3,7 +3,6 @@ plugins {
     id("plugin-convention")
     id("java-gradle-plugin")
     id("com.gradle.plugin-publish")
-    id("com.google.devtools.ksp")
 }
 
 base {
@@ -12,11 +11,25 @@ base {
 
 dependencies {
     implementation(gradleApi())
-    implementation(libs.grgitCore)
-    implementation(libs.grgitGradle)
     implementation(libs.detekt.plugin)
 
     compileOnly(libs.agp)
+}
+
+val versionCatalog = extensions.getByType<VersionCatalogsExtension>().named("libs")
+val generateDefaultToolVersions =
+    tasks.register<WriteProperties>("generateDefaultToolVersions") {
+        destinationFile.set(layout.buildDirectory.file("generated/resources/default-tool-versions.properties"))
+        listOf("ktlint-cli", "detekt-formatting", "detekt-compose-rules").forEach { alias ->
+            val library = versionCatalog.findLibrary(alias).get().get()
+            property(alias, "${library.module.group}:${library.module.name}:${library.versionConstraint.requiredVersion}")
+        }
+    }
+
+sourceSets {
+    main {
+        resources.srcDir(generateDefaultToolVersions.map { it.destinationFile.get().asFile.parentFile })
+    }
 }
 
 gradlePlugin {
@@ -26,11 +39,13 @@ gradlePlugin {
     plugins {
         create("ru.kode.android.app-quality.foundation") {
             id = "ru.kode.android.app-quality.foundation"
-            displayName = "Configure project output using tag and generate changelog"
+            displayName = "Centralized ktlint and detekt configuration for Android/Kotlin projects"
             implementationClass = "ru.kode.android.app.quality.plugin.foundation.AppQualityFoundationPlugin"
             version = project.version
-            description = "Android plugin to configure output and changelog generation"
-            tags.set(listOf("output", "publish", "changelog", "build"))
+            description =
+                "Gradle plugin that centralizes static analysis and formatting: configures detekt per module, " +
+                "runs ktlint through CLI and provides aggregate verification tasks (pipelineCheck, prePushCheck)"
+            tags.set(listOf("quality", "detekt", "ktlint", "static-analysis", "verification"))
         }
     }
 }

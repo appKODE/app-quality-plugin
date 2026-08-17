@@ -26,4 +26,5 @@ rootProject.name = ("ru.kode.android.app.quality.plugin-test")
 include("foundation")
 include("utils")
 includeBuild("../build-conventions")
+includeBuild("../plugin-build")
 

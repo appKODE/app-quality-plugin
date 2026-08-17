@@ -40,3 +40,19 @@ internal fun Project.stopExecutionIfNotSupported() {
 object AgpVersions {
     val MIN_VERSION = AndroidPluginVersion(7, 4, 0)
 }
+
+/**
+ * Validates the AGP version of a subproject applying `com.android.application`/
+ * `com.android.library` directly (the foundation plugin itself is usually applied at the
+ * root only, so [stopExecutionIfNotSupported] never sees these). Called from the detekt
+ * per-subproject wiring, where an Android plugin's presence is already being checked.
+ */
+internal fun Project.validateSubprojectAgpVersion() {
+    val androidComponents =
+        extensions.findByType(AndroidComponentsExtension::class.java)
+            ?: return
+    val current = androidComponents.pluginVersion
+    if (current < MIN_VERSION) {
+        throw StopExecutionException(mustBeUsedWithVersionMessage(MIN_VERSION))
+    }
+}
