@@ -22,7 +22,7 @@ import ru.kode.android.app.quality.plugin.foundation.utils.ignoredSourcePatterns
 import ru.kode.android.app.quality.plugin.foundation.utils.kotlinSourcePatterns
 import ru.kode.android.app.quality.plugin.foundation.utils.resolveConfigFile
 import ru.kode.android.app.quality.plugin.foundation.utils.wireDependencies
-import ru.kode.android.build.publish.plugin.core.logger.LoggerService
+import ru.kode.android.gradle.commons.logger.LoggerService
 import java.util.concurrent.Callable
 
 internal data class KtlintTasks(

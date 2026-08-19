@@ -18,7 +18,7 @@ import ru.kode.android.app.quality.plugin.foundation.utils.activatesKodeRuleSet
 import ru.kode.android.app.quality.plugin.foundation.utils.resolveConfigFile
 import ru.kode.android.app.quality.plugin.foundation.utils.wireDependencies
 import ru.kode.android.app.quality.plugin.foundation.validate.validateSubprojectAgpVersion
-import ru.kode.android.build.publish.plugin.core.logger.LoggerService
+import ru.kode.android.gradle.commons.logger.LoggerService
 
 internal val DEFAULT_DETEKT_INCLUDE_PATTERNS =
     listOf(

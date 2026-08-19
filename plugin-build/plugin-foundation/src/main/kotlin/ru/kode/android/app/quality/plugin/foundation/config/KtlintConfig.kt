@@ -5,7 +5,7 @@ import groovy.lang.DelegatesTo
 import org.gradle.api.Action
 import org.gradle.api.file.RegularFileProperty
 import org.gradle.api.model.ObjectFactory
-import ru.kode.android.build.publish.plugin.core.util.configureGroovy
+import ru.kode.android.gradle.commons.util.configureGroovy
 import javax.inject.Inject
 
 abstract class KtlintConfig

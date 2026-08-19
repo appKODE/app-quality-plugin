@@ -4,11 +4,11 @@ import org.gradle.api.Plugin
 import org.gradle.api.Project
 import ru.kode.android.app.quality.plugin.foundation.extension.AppQualityFoundationExtension
 import ru.kode.android.app.quality.plugin.foundation.validate.stopExecutionIfNotSupported
-import ru.kode.android.build.publish.plugin.core.logger.LOGGER_SERVICE_EXTENSION_NAME
-import ru.kode.android.build.publish.plugin.core.logger.LOGGER_SERVICE_NAME
-import ru.kode.android.build.publish.plugin.core.logger.LoggerService
-import ru.kode.android.build.publish.plugin.core.logger.LoggerServiceExtension
-import ru.kode.android.build.publish.plugin.core.util.serviceName
+import ru.kode.android.gradle.commons.logger.LOGGER_SERVICE_EXTENSION_NAME
+import ru.kode.android.gradle.commons.logger.LOGGER_SERVICE_NAME
+import ru.kode.android.gradle.commons.logger.LoggerService
+import ru.kode.android.gradle.commons.logger.LoggerServiceExtension
+import ru.kode.android.gradle.commons.util.serviceName
 
 const val APP_QUALITY_EXTENSION_NAME = "appQualityFoundation"
 
