@@ -1,5 +1,5 @@
 version = libs.versions.appQualityPlugin.get()
 
 dependencies {
-    implementation(libs.plugin.core)
+    api(libs.plugin.core)
 }

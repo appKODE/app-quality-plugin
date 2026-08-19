@@ -1,5 +1,5 @@
 [versions]
-appQualityPlugin = "2.0.0"
+appQualityPlugin = "2.0.1"
 kotlin = "2.4.10"
 agp = "9.3.1"
 detekt = "1.23.8"
@@ -9,7 +9,7 @@ publish = "2.1.1"
 junit = "6.1.3"
 ktlintCli = "1.8.0"
 detekt-compose-rules = "1.4.0"
-buildPublishCore = "2.1.1"
+gradlePluginCommons = "1.0.0"
 composeMultiplatform = "1.11.1"
 
 [libraries]
@@ -20,7 +20,7 @@ ktlint-cli = { module = "com.pinterest.ktlint:ktlint-cli", version.ref = "ktlint
 agp = { module = "com.android.tools.build:gradle", version.ref = "agp" }
 grgitCore = { module = "org.ajoberstar.grgit:grgit-core", version.ref = "grgit" }
 junitBom = { module = "org.junit:junit-bom", version.ref = "junit" }
-plugin-core = { group = "ru.kode.android", name = "build-publish-novo-core", version.ref = "buildPublishCore" }
+plugin-core = { group = "ru.kode.android", name = "gradle-plugin-commons", version.ref = "gradlePluginCommons" }
 plugin-foundation = { group = "ru.kode.android", name = "app-quality-foundation", version.ref = "appQualityPlugin" }
 
 kotlin-plugin = { module = "org.jetbrains.kotlin:kotlin-gradle-plugin", version.ref = "kotlin" }

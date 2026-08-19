@@ -11,14 +11,13 @@ import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import ru.kode.android.app.quality.plugin.foundation.config.AndroidLintConfig
 import ru.kode.android.app.quality.plugin.foundation.config.DetektConfig
 import ru.kode.android.app.quality.plugin.foundation.config.KtlintConfig
-import ru.kode.android.build.publish.plugin.core.api.extension.BuildPublishConfigurableExtension
-import ru.kode.android.build.publish.plugin.core.util.configureGroovy
+import ru.kode.android.gradle.commons.util.configureGroovy
 import javax.inject.Inject
 
 @Suppress("UnnecessaryAbstractClass")
 abstract class AppQualityFoundationExtension
     @Inject
-    constructor(objectFactory: ObjectFactory) : BuildPublishConfigurableExtension() {
+    constructor(objectFactory: ObjectFactory) {
         /**
          * Enables verbose logging for the build and publish plugins.
          *
