@@ -19,6 +19,7 @@ import ru.kode.android.app.quality.plugin.foundation.utils.resolveConfigFile
 import ru.kode.android.app.quality.plugin.foundation.utils.wireDependencies
 import ru.kode.android.app.quality.plugin.foundation.validate.validateSubprojectAgpVersion
 import ru.kode.android.gradle.commons.logger.LoggerService
+import java.io.File
 
 internal val DEFAULT_DETEKT_INCLUDE_PATTERNS =
     listOf(
@@ -268,6 +269,17 @@ private fun Project.configureDetektTasks(
                     tree.exclude(excludePatterns)
                 }
             }
+
+        // Defense-in-depth: AGP/KMP Android-target variant tasks (e.g. detektAndroidDebug) have
+        // their `source` reassigned later by detekt-gradle-plugin's own variant-registration
+        // callback, from the AGP variant's sourceSets — which already treats the KSP output dir
+        // as a first-class source root, silently overriding the exclude patterns above. A glob
+        // exclude can't catch this either: for those variants the source root itself already
+        // sits inside build/generated/..., so a root-relative path never contains that segment
+        // again. `exclude(Spec)` is lazy and additive, evaluated against whatever `source` ends
+        // up being at execution time, and matches on the absolute file path instead.
+        val generatedPathMarker = "${File.separator}build${File.separator}generated${File.separator}"
+        task.exclude { fileTreeElement -> fileTreeElement.file.path.contains(generatedPathMarker) }
 
         task.reports {
             it.xml.required.set(detektConfig.xmlReportEnabled)
