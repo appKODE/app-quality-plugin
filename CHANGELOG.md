@@ -5,6 +5,18 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.2] - 2026-08-20
+
+### Fixed
+
+- Detekt's `**/generated/**`/`**/build/**` exclude patterns no longer get silently overridden on
+  AGP/KMP Android-target variant tasks (e.g. `detektAndroidDebug`). detekt-gradle-plugin's own
+  lazy variant-registration callback reassigns `task.source` from the AGP variant's `sourceSets`
+  after this plugin's own `fileTree(include/exclude)` assignment, and that AGP source set already
+  treats the KSP output directory as a first-class source root — so KSP-generated code was being
+  linted. Added a lazy, absolute-path-based `task.exclude { ... }` that survives the later
+  `setSource()` override.
+
 ## [2.0.1] - 2026-08-19
 * Switch to use Gradle commons library
 

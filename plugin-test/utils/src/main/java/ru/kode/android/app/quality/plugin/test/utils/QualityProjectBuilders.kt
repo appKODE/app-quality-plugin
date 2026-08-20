@@ -433,7 +433,13 @@ private fun moduleBuildFileContent(
                     }
                     .orEmpty()
             val kotlinAndroidPlugin =
-                if (module.applyKotlinAndroidPlugin) pluginId("org.jetbrains.kotlin.android", useKotlinDsl) else ""
+                if (module.applyMultiplatformPlugin) {
+                    pluginId("org.jetbrains.kotlin.multiplatform", useKotlinDsl)
+                } else if (module.applyKotlinAndroidPlugin) {
+                    pluginId("org.jetbrains.kotlin.android", useKotlinDsl)
+                } else {
+                    ""
+                }
             val composePlugin =
                 if (module.applyJetbrainsComposePlugin) {
                     // Since Compose Multiplatform 1.6.10, org.jetbrains.compose requires the
@@ -475,6 +481,16 @@ private fun moduleBuildFileContent(
                 }
             val compileSdkLine =
                 if (useKotlinDsl) "compileSdk = ${module.compileSdk}" else "compileSdk ${module.compileSdk}"
+            val androidTargetBlock =
+                if (module.applyMultiplatformPlugin) {
+                    """
+                kotlin {
+                    androidTarget()
+                }
+                """
+                } else {
+                    ""
+                }
             """
             plugins {
                 ${pluginId(androidPluginId, useKotlinDsl)}
@@ -492,6 +508,8 @@ private fun moduleBuildFileContent(
 
                 $buildTypesBlock
             }
+
+            $androidTargetBlock
             """.trimIndent().removeBlankLines()
         }
 
