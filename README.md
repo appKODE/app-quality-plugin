@@ -153,6 +153,8 @@ appQualityFoundation {
             exclude.set(listOf("tmpGenerated"))
         }
         typeResolution.set(false)
+        // Only the filename is used — it's re-resolved per subproject, so this is safe to set
+        // once here even when app-quality-plugin is applied at the root only.
         baseline.set(layout.projectDirectory.file("detekt-baseline.xml"))
         xmlReportEnabled.set(true)
         sarifReportEnabled.set(false)
@@ -193,7 +195,7 @@ appQualityFoundation {
 | `detekt.sources.include` | per-platform Kotlin/Java source dirs (while `useDefaults` is `true`) |
 | `detekt.sources.exclude` | `[]` |
 | `detekt.typeResolution` | `false` |
-| `detekt.baseline` | unset (no baseline) |
+| `detekt.baseline` | unset (no baseline); when set, resolved per-subproject by filename — safe to configure once regardless of where the plugin is applied |
 | `detekt.xmlReportEnabled` | `false` |
 | `detekt.sarifReportEnabled` | `false` |
 | `androidLint.enabled` | `false` |

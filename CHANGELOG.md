@@ -5,6 +5,18 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.3] - 2026-08-22
+
+### Fixed
+
+- `detekt.baseline` collided across subprojects when `app-quality-plugin` is applied at the root
+  only (no per-module convention plugin): the configured value is a single root-scoped
+  `RegularFileProperty`, so every subproject's `detektBaseline*` task wrote to the exact same file
+  path, and whichever module's task ran last silently overwrote every other module's baseline
+  entries. The baseline is now re-resolved under each subproject's own directory by filename, so
+  root-only application produces one baseline file per subproject, matching the behavior
+  per-module convention-plugin usage already had.
+
 ## [2.0.2] - 2026-08-20
 
 ### Fixed

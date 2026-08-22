@@ -799,12 +799,54 @@ class DetektConfigurationTest {
         val baselineResult = projectDir.runTask(":a:detektBaseline")
         assertEquals(TaskOutcome.SUCCESS, baselineResult.task(":a:detektBaseline")?.outcome)
         assertTrue(
-            File(projectDir, "detekt-baseline.xml").exists(),
-            "expected detektBaseline to write the baseline at the configured path",
+            File(projectDir, "a/detekt-baseline.xml").exists(),
+            "expected detektBaseline to write the baseline under the module's own directory, " +
+                "even though it was configured once at the root",
         )
 
         val withBaseline = projectDir.runTask(":a:detekt")
         assertEquals(TaskOutcome.SUCCESS, withBaseline.task(":a:detekt")?.outcome)
+    }
+
+    @Test
+    fun `root-only baseline config resolves to a separate file per subproject`() {
+        projectDir.createQualityProject(
+            modules =
+                listOf(
+                    ModuleSpec(
+                        name = "a",
+                        type = ModuleType.KotlinJvm,
+                        detektKotlinConfigContent = Configs.DETEKT_MAX_LINE_60,
+                        kotlinSources = mapOf("src/main/kotlin/ru/kode/test/Long.kt" to Sources.LONG_LINE_80),
+                    ),
+                    ModuleSpec(
+                        name = "b",
+                        type = ModuleType.KotlinJvm,
+                        detektKotlinConfigContent = Configs.DETEKT_MAX_LINE_60,
+                        kotlinSources = mapOf("src/main/kotlin/ru/kode/test/Long.kt" to Sources.LONG_LINE_80),
+                    ),
+                ),
+            // Mirrors root-only application (no per-module convention plugin): configured ONCE,
+            // on the shared root-scoped extension, exactly like dreamisland's setup.
+            qualityConfig =
+                QualityConfig(
+                    extraExtensionContent =
+                        "detekt.baseline.set(rootProject.layout.projectDirectory.file(\"detekt-baseline.xml\"))",
+                ),
+        )
+
+        projectDir.runTasks(":a:detektBaseline", ":b:detektBaseline")
+
+        val baselineA = File(projectDir, "a/detekt-baseline.xml")
+        val baselineB = File(projectDir, "b/detekt-baseline.xml")
+        assertTrue(baselineA.exists(), "expected module a to get its own baseline file")
+        assertTrue(baselineB.exists(), "expected module b to get its own baseline file")
+        assertTrue(baselineA.readText().contains("MaxLineLength"), "expected module a's own finding in its baseline")
+        assertTrue(baselineB.readText().contains("MaxLineLength"), "expected module b's own finding in its baseline")
+
+        val checkResult = projectDir.runTasks(":a:detekt", ":b:detekt")
+        assertEquals(TaskOutcome.SUCCESS, checkResult.task(":a:detekt")?.outcome)
+        assertEquals(TaskOutcome.SUCCESS, checkResult.task(":b:detekt")?.outcome)
     }
 
     @Test
