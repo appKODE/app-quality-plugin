@@ -174,7 +174,11 @@ private fun Project.configureDetekt(
             detektExtension.ignoredBuildTypes =
                 (detektExtension.ignoredBuildTypes + extension.detekt.ignoredBuildTypes.get()).distinct()
             extension.detekt.baseline.orNull?.let { baseline ->
-                detektExtension.baseline = baseline.asFile
+                // Re-root under this subproject's own directory, keeping only the filename: the
+                // configured `RegularFileProperty` is a single root-scoped value, so using it
+                // verbatim would point every subproject at the identical file, and their
+                // `detektBaseline*` tasks would overwrite each other's findings.
+                detektExtension.baseline = layout.projectDirectory.file(baseline.asFile.name).asFile
             }
         }
         if (rootProject.state.executed) {

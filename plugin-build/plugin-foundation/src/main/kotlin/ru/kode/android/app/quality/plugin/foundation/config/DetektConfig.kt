@@ -89,6 +89,10 @@ abstract class DetektConfig
          * Optional detekt baseline file: findings already present in it are suppressed.
          * Unset by default (no baseline) — set to adopt detekt incrementally on a legacy
          * module, e.g. `baseline.set(layout.projectDirectory.file("detekt-baseline.xml"))`.
+         *
+         * Only the filename is used: it is re-resolved under each subproject's own directory,
+         * so every subproject gets its own baseline file regardless of whether this is configured
+         * once at the root (root-only application) or per-module (via a convention plugin).
          */
         val baseline: RegularFileProperty = objectFactory.fileProperty()
 
