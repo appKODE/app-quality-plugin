@@ -125,13 +125,13 @@ class AgpVersionsValidatorTest {
             """.trimIndent(),
         )
 
-        // AgpVersions.MIN_VERSION is 7.4.0 — 7.3.1 has AppPlugin but must fail the version
+        // AgpVersions.MIN_VERSION is 8.7.3 — 8.7.2 has AppPlugin but must fail the version
         // check first (it runs before the AppPlugin check in stopExecutionIfNotSupported).
         val result =
             projectDir.runTasks(
                 "help",
                 agpClasspath = resolveRequiredAgpJars(BELOW_MIN_AGP_VERSION),
-                gradleVersion = BELOW_MIN_AGP_GRADLE_VERSION,
+                gradleVersion = LEGACY_GRADLE_VERSION,
                 expectFailure = true,
             )
 
@@ -196,7 +196,7 @@ class AgpVersionsValidatorTest {
             projectDir.runTasks(
                 "help",
                 agpClasspath = resolveRequiredAgpJars(BELOW_MIN_AGP_VERSION),
-                gradleVersion = BELOW_MIN_AGP_GRADLE_VERSION_MULTI_MODULE,
+                gradleVersion = LEGACY_GRADLE_VERSION,
                 expectFailure = true,
             )
 
@@ -225,8 +225,6 @@ class AgpVersionsValidatorTest {
     }
 
     private companion object {
-        const val BELOW_MIN_AGP_VERSION = "7.3.1"
-        const val BELOW_MIN_AGP_GRADLE_VERSION = "8.6"
-        const val BELOW_MIN_AGP_GRADLE_VERSION_MULTI_MODULE = "8.7"
+        const val BELOW_MIN_AGP_VERSION = "8.7.2"
     }
 }

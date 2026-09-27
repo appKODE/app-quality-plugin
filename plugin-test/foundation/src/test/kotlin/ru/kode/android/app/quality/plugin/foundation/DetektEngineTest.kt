@@ -470,6 +470,10 @@ class DetektEngineTest {
         val expected = if (engine == 1) "v1=true v2=false" else "v1=false v2=true"
         listOf(":a", ":b").forEach { path ->
             assertTrue(result.output.contains("DETEKT-PLUGINS $path $expected"), "$path must apply only engine $engine")
+            assertTrue(
+                result.tasks.any { it.path.startsWith("$path:detekt") },
+                "the aggregate tasks must run $path's detekt tasks, got: ${result.tasks.map { it.path }}",
+            )
         }
     }
 

@@ -4,6 +4,7 @@ import dev.detekt.gradle.Detekt
 import dev.detekt.gradle.DetektCreateBaselineTask
 import dev.detekt.gradle.extensions.DetektExtension
 import dev.detekt.gradle.plugin.DetektPlugin
+import org.gradle.api.GradleException
 import org.gradle.api.Project
 import org.gradle.api.Task
 import org.gradle.api.file.RegularFile
@@ -11,6 +12,7 @@ import org.gradle.api.provider.Provider
 import org.gradle.api.tasks.TaskCollection
 import ru.kode.android.app.quality.plugin.foundation.configureDetektSources
 import ru.kode.android.app.quality.plugin.foundation.extension.AppQualityFoundationExtension
+import ru.kode.android.app.quality.plugin.foundation.messages.detekt2KotlinPluginTooOldMessage
 import ru.kode.android.app.quality.plugin.foundation.typeResolutionLibraries
 import ru.kode.android.gradle.commons.logger.LoggerService
 
@@ -27,6 +29,13 @@ internal object Detekt2Engine : DetektEngine {
     override val kotlinConfigResource = "detekt/default.kotlin-config-detekt2.yml"
 
     override fun applyPlugin(project: Project) {
+        // detekt 2 needs KGP 2.1.21+ (KotlinJvmExtension); older KGP fails with a raw NoClassDefFoundError.
+        val loader = DetektPlugin::class.java.classLoader
+        if (loader.hasClass("org.jetbrains.kotlin.gradle.dsl.KotlinProjectExtension") &&
+            !loader.hasClass("org.jetbrains.kotlin.gradle.dsl.KotlinJvmExtension")
+        ) {
+            throw GradleException(detekt2KotlinPluginTooOldMessage(project.path))
+        }
         project.pluginManager.apply(DetektPlugin::class.java)
     }
 
@@ -78,3 +87,11 @@ internal object Detekt2Engine : DetektEngine {
 
     override fun detektTasks(project: Project): TaskCollection<out Task> = project.tasks.withType(Detekt::class.java)
 }
+
+private fun ClassLoader.hasClass(name: String): Boolean =
+    try {
+        Class.forName(name, false, this)
+        true
+    } catch (_: ClassNotFoundException) {
+        false
+    }

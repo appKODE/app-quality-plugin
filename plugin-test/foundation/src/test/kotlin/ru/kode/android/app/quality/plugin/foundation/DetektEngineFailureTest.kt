@@ -9,6 +9,8 @@ import ru.kode.android.app.quality.plugin.test.utils.ModuleSpec
 import ru.kode.android.app.quality.plugin.test.utils.ModuleType
 import ru.kode.android.app.quality.plugin.test.utils.QualityConfig
 import ru.kode.android.app.quality.plugin.test.utils.createQualityProject
+import ru.kode.android.app.quality.plugin.test.utils.resolveJars
+import ru.kode.android.app.quality.plugin.test.utils.resolveKotlinGradlePluginJars
 import ru.kode.android.app.quality.plugin.test.utils.runTasks
 import java.io.File
 
@@ -47,6 +49,39 @@ class DetektEngineFailureTest {
         val result = projectDir.runTasks("help", expectFailure = true, withoutDetekt2Plugin = true)
 
         assertTrue(result.output.contains("DETEKT 2 GRADLE PLUGIN NOT FOUND"), "expected the missing plugin message")
+    }
+
+    @Test
+    fun `engine 2 with another dev detekt version fails naming both versions`() {
+        projectDir.createQualityProject(modules = listOf(kotlinModule), detektEngine = 2)
+
+        val result =
+            projectDir.runTasks(
+                "help",
+                expectFailure = true,
+                detekt2Classpath = resolveJars("dev.detekt:detekt-gradle-plugin:2.0.0-alpha.5"),
+            )
+
+        assertTrue(result.output.contains("UNSUPPORTED DETEKT 2 GRADLE PLUGIN VERSION"), "expected the version message")
+        assertTrue(
+            result.output.contains("'dev.detekt' 2.0.0-alpha.6, but the classpath has 2.0.0-alpha.5"),
+            "expected both versions",
+        )
+    }
+
+    @Test
+    fun `engine 2 with a Kotlin Gradle plugin older than 2_1_21 fails with the fix`() {
+        projectDir.createQualityProject(modules = listOf(kotlinModule), detektEngine = 2)
+
+        val result =
+            projectDir.runTasks(
+                "help",
+                expectFailure = true,
+                kotlinClasspath = resolveKotlinGradlePluginJars("2.0.21"),
+            )
+
+        assertTrue(result.output.contains("KOTLIN GRADLE PLUGIN TOO OLD FOR DETEKT 2"), "expected the KGP message")
+        assertTrue(result.output.contains("Project ':a' applies"), "expected the offending module")
     }
 
     @ParameterizedTest(name = "engine {0}")

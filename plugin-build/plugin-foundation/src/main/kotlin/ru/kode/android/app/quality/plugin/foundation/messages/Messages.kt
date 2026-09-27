@@ -168,7 +168,7 @@ fun invalidDetektEngineMessage(value: String): String =
  * Error message shown when engine 2 is selected but the `dev.detekt` Gradle plugin is not on the
  * plugin classpath next to this plugin.
  */
-fun detekt2PluginMissingMessage(): String =
+fun detekt2PluginMissingMessage(version: String): String =
     """
         |
         |============================================================
@@ -181,14 +181,57 @@ fun detekt2PluginMissingMessage(): String =
         | (the root build script):
         |
         |     plugins {
-        |         id("dev.detekt") version "2.0.0-alpha.6" apply false
+        |         id("dev.detekt") version "$version" apply false
         |         id("ru.kode.android.app-quality.foundation") version "..."
         |     }
         |
         | If the app-quality plugin comes from buildSrc or a
         | convention-plugin build, add
-        | "dev.detekt:detekt-gradle-plugin:2.0.0-alpha.6" to that
+        | "dev.detekt:detekt-gradle-plugin:$version" to that
         | build's dependencies instead.
+        |============================================================
+    """.trimMargin()
+
+/**
+ * Error message shown when engine 2 is selected but the `dev.detekt` Gradle plugin on the
+ * classpath is not the version this plugin is built against ([actual] is `null` when unknown).
+ */
+fun detekt2VersionMismatchMessage(
+    expected: String,
+    actual: String?,
+): String =
+    """
+        |
+        |============================================================
+        |           UNSUPPORTED DETEKT 2 GRADLE PLUGIN VERSION
+        |============================================================
+        | ru.kode.appQuality.detektEngine=2 is built against
+        | 'dev.detekt' $expected, but the classpath has ${actual ?: "an unknown version"}.
+        | detekt 2 is in alpha: its API changes between releases.
+        |
+        | FIX: declare exactly this version next to the plugin:
+        |
+        |     id("dev.detekt") version "$expected" apply false
+        |============================================================
+    """.trimMargin()
+
+/**
+ * Error message shown when engine 2 runs on a Kotlin Gradle plugin older than the one detekt 2
+ * needs: it references KGP's `KotlinJvmExtension`, which KGP 2.0 lacks.
+ */
+fun detekt2KotlinPluginTooOldMessage(projectPath: String): String =
+    """
+        |
+        |============================================================
+        |        KOTLIN GRADLE PLUGIN TOO OLD FOR DETEKT 2
+        |============================================================
+        | Project '$projectPath' applies a Kotlin Gradle plugin older
+        | than 2.1.21; ru.kode.appQuality.detektEngine=2 (detekt 2)
+        | needs KGP 2.1.21 or newer.
+        |
+        | FIX: update the Kotlin Gradle plugin to 2.1.21+, or use
+        | engine 1 (ru.kode.appQuality.detektEngine=1), which
+        | supports KGP 2.0.21+.
         |============================================================
     """.trimMargin()
 

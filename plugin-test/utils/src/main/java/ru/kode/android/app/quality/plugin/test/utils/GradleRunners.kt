@@ -29,6 +29,8 @@ fun File.runTasks(
     gradleJvmArgs: List<String> = emptyList(),
     expectFailure: Boolean = false,
     withoutDetekt2Plugin: Boolean = false,
+    // Replaces the dev.detekt artifacts on the injected classpath (another detekt 2 version).
+    detekt2Classpath: List<File> = emptyList(),
     // A JVM-only consumer: no AGP on the build classpath at all.
     withoutAgp: Boolean = false,
 ): BuildResult {
@@ -48,7 +50,9 @@ fun File.runTasks(
             }
         }
     val customClasspath =
-        listOf(agpClasspath, kotlinClasspath).any { it.isNotEmpty() } || withoutDetekt2Plugin || withoutAgp
+        listOf(agpClasspath, kotlinClasspath, detekt2Classpath).any { it.isNotEmpty() } ||
+            withoutDetekt2Plugin ||
+            withoutAgp
     val runner =
         GradleRunner
             .create()
@@ -58,7 +62,13 @@ fun File.runTasks(
             .apply {
                 if (customClasspath) {
                     withPluginClasspath(
-                        prepareClasspath(agpClasspath, kotlinClasspath, withoutDetekt2Plugin, withoutAgp),
+                        prepareClasspath(
+                            agpClasspath,
+                            kotlinClasspath,
+                            detekt2Classpath,
+                            withoutDetekt2Plugin,
+                            withoutAgp,
+                        ),
                     )
                 } else {
                     withPluginClasspath()
@@ -84,6 +94,7 @@ fun File.runTaskWithFail(
 private fun prepareClasspath(
     agpClassPath: List<File>,
     kotlinClasspath: List<File>,
+    detekt2Classpath: List<File>,
     withoutDetekt2Plugin: Boolean,
     withoutAgp: Boolean,
 ): List<File> {
@@ -95,12 +106,14 @@ private fun prepareClasspath(
             val path = file.path.replace('\\', '/')
             val isDroppedAgp = (agpClassPath.isNotEmpty() || withoutAgp) && path.contains("/com.android")
             val isDroppedKotlin = kotlinClasspath.isNotEmpty() && path.contains("/org.jetbrains.kotlin/")
-            val isDroppedDetekt2 = withoutDetekt2Plugin && path.contains("/dev.detekt/")
+            val isDroppedDetekt2 =
+                (withoutDetekt2Plugin || detekt2Classpath.isNotEmpty()) && path.contains("/dev.detekt/")
             !isDroppedAgp && !isDroppedKotlin && !isDroppedDetekt2
         }
     val dropped = pluginClasspath.size - filteredClasspath.size
     println("Dropped $dropped default AGP jars, adding ${agpClassPath.size} AGP jars")
-    return filteredClasspath + agpClassPath + kotlinClasspath.filter { it.path.contains("/org.jetbrains.kotlin/") }
+    return filteredClasspath + agpClassPath + kotlinClasspath.filter { it.path.contains("/org.jetbrains.kotlin/") } +
+        detekt2Classpath.filter { it.path.contains("/dev.detekt/") }
 }
 
 /**

@@ -245,7 +245,7 @@ appQualityFoundation {
 | `detekt.typeResolution` | `false` |
 | `detekt.buildUponDefaultConfig` | `false` |
 | `detekt.baseline` | unset (no baseline); when set, resolved per-subproject by filename — safe to configure once regardless of where the plugin is applied |
-| `detekt.xmlReportEnabled` | `false` |
+| `detekt.xmlReportEnabled` | `false`; engine 2 has no `xml` report, so this enables detekt 2's `checkstyle` report (the same checkstyle XML, still `build/reports/detekt/<task>.xml`) |
 | `detekt.sarifReportEnabled` | `false` |
 | `androidLint.enabled` | `false` |
 | `ktlint.cli` | `libs.ktlint-cli`, falling back to the plugin's own baked-in `com.pinterest.ktlint:ktlint-cli` coordinate if no matching catalog alias exists (while `useDefaults` is `true`) |

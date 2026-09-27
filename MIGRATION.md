@@ -19,8 +19,15 @@ The "bundled default" notes in the 2.0.0 section below no longer apply.
 Opt in with `ru.kode.appQuality.detektEngine=2` plus
 `id("dev.detekt") version "2.0.0-alpha.6" apply false` in the root build. Custom configs must drop
 the `build:` and `output-reports:` keys, use detekt 2 rule and property names and a list for
-`config.excludes`; engine 1 rule artifacts must leave `rules {}`. Full list: [CHANGELOG.md](CHANGELOG.md) "Upgrading
-from 2.x".
+`config.excludes`; engine 1 rule artifacts must leave `rules {}`. `dev.detekt` must be exactly
+2.0.0-alpha.6 and the Kotlin Gradle plugin 2.1.21+ (both checked with a clear failure).
+`detekt.xmlReportEnabled` enables detekt 2's `checkstyle` report (detekt 2 has no `xml` report):
+the same checkstyle XML at the same `build/reports/detekt/<task>.xml` path. Full list:
+[CHANGELOG.md](CHANGELOG.md) "Upgrading from 2.x".
+
+### Breaking: minimum AGP 8.7.3
+
+The minimum Android Gradle Plugin is now 8.7.3 (was 7.4.0), the oldest version tested.
 
 ## 2.0.0 (dependency wiring rework) — migrating from 1.0.8
 
@@ -43,10 +50,11 @@ appQualityFoundation {
 }
 ```
 
-### Breaking: implicit `<root>/libs/detekt-rules-1.4.0.jar` default removed — superseded below
+### Breaking: implicit `<root>/libs/detekt-rules-1.4.0.jar` default removed
 
-Previously the plugin silently picked up `<root>/libs/detekt-rules-1.4.0.jar` when it
-existed. That implicit, path-based pickup is gone. **However**, see "New: bundled default for
+Superseded in 3.0.0 (see "Breaking: bundled `kode` rules jar removed" above): the rules now
+come from Maven Central. Previously the plugin silently picked up
+`<root>/libs/detekt-rules-1.4.0.jar` when it existed. That implicit, path-based pickup is gone. **However**, see "New: bundled default for
 `detekt.android.rules`" below — for the common case (bundled `default.android-config.yml`,
 which is the only config that activates `kode:` today) the plugin now supplies an equivalent
 default again, just as an explicit, inspectable dependency slot instead of a silent file

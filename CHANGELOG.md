@@ -5,7 +5,7 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [3.0.0] - Unreleased
+## [3.0.0] - 2026-09-28
 
 ### Changed
 
@@ -20,10 +20,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Breaking:** default Kotlin config: `EnumNaming` now requires PascalCase entries
   (`'[A-Z](?![A-Z]*$)[a-zA-Z0-9]*|[A-Z]'`): multi-letter ALL-CAPS entries such as `GET` or `VK`
   are reported, single letters are still allowed.
-- Default Android config: `MissingTypeDeclaration`, `ComponentFunctionCall` and `UseOnStartEmit` are inactive,
+- Default Android config: `MissingTypeDeclaration` and `ComponentFunctionCall` are inactive,
   `BlockingSqlDelightCall` targets `app.cash.sqldelight`.
 - Default Compose config: dropped `ModifierParameterPosition` and `ComposeFunctionName`, unknown to
   `detekt-rules-compose` 2.x.
+- **Breaking:** the minimum AGP is 8.7.3 (was 7.4.0), the oldest version tested; older AGP fails
+  with the "UNSUPPORTED ANDROID GRADLE PLUGIN VERSION" message.
 - Built with Kotlin 2.4.20, AGP 9.4.1, Gradle 9.8.0.
 
 ### Added
@@ -34,9 +36,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `dev.detekt:detekt-rules-ktlint-wrapper` (catalog alias `detekt-rules-ktlint-wrapper`) and a
   detekt 2 flavour of the bundled Kotlin config.
 - `detekt.buildUponDefaultConfig` (default `false`).
-- A warning when a leftover `libs/detekt-rules-*.jar` is found (the `kode` rules would run twice).
-- Clear failures for an unsupported engine value, engine 2 without `dev.detekt` on the classpath,
-  and a module applying the other engine's detekt plugin.
+- A warning when a leftover 2.x rules jar (`libs/detekt-rules-1.x.y.jar` or
+  `libs/kode-android-rules-1.x.y.jar`) is found (the `kode` rules would run twice).
+- Clear failures for an unsupported engine value, engine 2 without `dev.detekt` on the classpath
+  or with a `dev.detekt` version other than 2.0.0-alpha.6, engine 2 on a Kotlin Gradle plugin older
+  than 2.1.21, and a module applying the other engine's detekt plugin.
 
 ### Fixed
 
@@ -69,11 +73,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
    - `UnusedPrivateProperty` and `UseDataClass` only report with `detekt.typeResolution` on;
    - `CyclomaticComplexMethod` counts some constructs higher than detekt 1 with the same
      threshold, so large `when`/branching functions may newly be reported;
+   - `dev.detekt` must be exactly 2.0.0-alpha.6, the version the plugin is built against;
    - needs KGP 2.1.21+ (`KotlinJvmExtension`); engine 1 still works with KGP 2.0.21;
+   - `detekt.xmlReportEnabled` enables detekt 2's `checkstyle` report, as detekt 2 has no `xml`
+     report; it is the same checkstyle XML at the same path (`build/reports/detekt/<task>.xml`),
+     so only report tooling that parses detekt-specific attributes needs a look;
    - the detekt 2 task's `basePath` is an absolute input: a checkout at another path misses the
      build cache; with no report enabled the task declares no outputs and is never cached;
    - the custom rule sets must be built against `dev.detekt:detekt-api`.
-5. Isolated projects are not supported (the root-applied plugin configures subprojects), as in 2.x.
+5. AGP 8.7.3 is the minimum (was 7.4.0).
+6. Isolated projects are not supported (the root-applied plugin configures subprojects), as in 2.x.
 
 ## [2.0.3] - 2026-08-22
 
