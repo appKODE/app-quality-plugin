@@ -6,6 +6,7 @@ import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
+import ru.kode.android.app.quality.plugin.test.utils.DetektBlock
 import ru.kode.android.app.quality.plugin.test.utils.ModuleSpec
 import ru.kode.android.app.quality.plugin.test.utils.ModuleType
 import ru.kode.android.app.quality.plugin.test.utils.QualityConfig
@@ -56,8 +57,6 @@ class AggregateTasksTest {
                         kotlinSources = mapOf("src/main/kotlin/ru/kode/test/Main.kt" to Sources.CLEAN_TWO_SPACE),
                     ),
                 ),
-            qualityConfig = QualityConfig(detekt = kodeRulesJarBlock()),
-            rulesJar = exampleRulesJar(),
         )
         projectDir.initGit()
 
@@ -93,9 +92,8 @@ class AggregateTasksTest {
                 ),
             qualityConfig =
                 QualityConfig(
-                    detekt = kodeRulesJarBlock().copy(ignoredBuildTypes = listOf("debug")),
+                    detekt = DetektBlock(ignoredBuildTypes = listOf("debug")),
                 ),
-            rulesJar = exampleRulesJar(),
         )
         projectDir.initGit()
 
@@ -160,8 +158,6 @@ class AggregateTasksTest {
                         kotlinSources = mapOf("src/main/kotlin/ru/kode/test/Main.kt" to Sources.CLEAN_TWO_SPACE),
                     ),
                 ),
-            qualityConfig = QualityConfig(detekt = kodeRulesJarBlock()),
-            rulesJar = exampleRulesJar(),
         )
         projectDir.initGit()
 
@@ -187,10 +183,8 @@ class AggregateTasksTest {
                 ),
             qualityConfig =
                 QualityConfig(
-                    detekt = kodeRulesJarBlock(),
                     extraExtensionContent = "androidLint.enabled.set(true)",
                 ),
-            rulesJar = exampleRulesJar(),
         )
         projectDir.initGit()
 

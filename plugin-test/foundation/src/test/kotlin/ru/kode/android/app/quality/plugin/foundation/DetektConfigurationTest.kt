@@ -4,11 +4,11 @@ import org.gradle.testkit.runner.TaskOutcome
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
-import org.junit.jupiter.api.Assumptions.assumeTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
 import ru.kode.android.app.quality.plugin.foundation.messages.missingKodeRuleSetDependencyMessage
+import ru.kode.android.app.quality.plugin.test.utils.CUSTOM_RULES_JAR_PATH
 import ru.kode.android.app.quality.plugin.test.utils.DependencySlot
 import ru.kode.android.app.quality.plugin.test.utils.DetektBlock
 import ru.kode.android.app.quality.plugin.test.utils.LibsCatalog
@@ -149,7 +149,6 @@ class DetektConfigurationTest {
     @Test
     fun `configured rules jar makes the kode rule set available to detekt`() {
         val rulesJar = exampleRulesJar()
-        assumeTrue(rulesJar != null, "example-project rules jar not found; skipping")
 
         projectDir.createQualityProject(
             modules =
@@ -206,7 +205,7 @@ class DetektConfigurationTest {
     }
 
     @Test
-    fun `android module using the bundled default config succeeds via the bundled kode rules jar default`() {
+    fun `android module using the bundled default config succeeds via the Maven Central kode rules default`() {
         projectDir.createQualityProject(
             modules =
                 listOf(
@@ -216,7 +215,7 @@ class DetektConfigurationTest {
                         // no detektAndroidConfigContent override -> uses the bundled
                         // default.android-config.yml, which activates `kode:` via
                         // RouteWiringMethodNaming. Zero-config: detekt.android.rules now has
-                        // a bundled default (the plugin's own kode rules jar resource), so
+                        // a default (ru.kode:detekt-rules from Maven Central), so
                         // this must succeed with no qualityConfig at all.
                         kotlinSources = mapOf("src/main/kotlin/ru/kode/test/Main.kt" to Sources.CLEAN_TWO_SPACE),
                     ),
@@ -262,7 +261,6 @@ class DetektConfigurationTest {
     @Test
     fun `android rules useDefaults false with an explicit jar still succeeds`() {
         val rulesJar = exampleRulesJar()
-        assumeTrue(rulesJar != null, "example-project rules jar not found; skipping")
 
         projectDir.createQualityProject(
             modules =
@@ -281,7 +279,7 @@ class DetektConfigurationTest {
                                 PlatformDetektBlock(
                                     rules =
                                         DependencySlot(
-                                            files = listOf("libs/detekt-rules-1.4.0.jar"),
+                                            files = listOf(CUSTOM_RULES_JAR_PATH),
                                             useDefaults = false,
                                         ),
                                 ),
@@ -542,7 +540,7 @@ class DetektConfigurationTest {
                                 PlatformDetektBlock(
                                     rules =
                                         DependencySlot(
-                                            notations = listOf("ru.kode:detekt-rules-compose:1.4.0"),
+                                            notations = listOf("ru.kode:detekt-rules-compose:2.1.0"),
                                             useDefaults = false,
                                         ),
                                 ),
@@ -595,7 +593,6 @@ class DetektConfigurationTest {
     @Test
     fun `kode jar wired only via kotlin rules still satisfies the android platform of the same module`() {
         val rulesJar = exampleRulesJar()
-        assumeTrue(rulesJar != null, "example-project rules jar not found; skipping")
 
         projectDir.createQualityProject(
             modules =
@@ -617,7 +614,7 @@ class DetektConfigurationTest {
                             // module) wires the same jar into the shared detektPlugins config.
                             kotlin =
                                 PlatformDetektBlock(
-                                    rules = DependencySlot(files = listOf("libs/detekt-rules-1.4.0.jar")),
+                                    rules = DependencySlot(files = listOf(CUSTOM_RULES_JAR_PATH)),
                                 ),
                         ),
                 ),

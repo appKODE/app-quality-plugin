@@ -58,6 +58,7 @@ data class DetektBlock(
     val ignoredBuildTypes: List<String>? = null,
     val sources: SourcePatternsSlot? = null,
     val typeResolution: Boolean? = null,
+    val buildUponDefaultConfig: Boolean? = null,
     val kotlin: PlatformDetektBlock? = null,
     val android: PlatformDetektBlock? = null,
     val compose: PlatformDetektBlock? = null,
@@ -105,6 +106,8 @@ data class ModuleSpec(
     val applyJetbrainsComposePlugin: Boolean = false,
     // Applies org.jetbrains.kotlin.multiplatform with a minimal `kotlin { jvm() }` target.
     val applyMultiplatformPlugin: Boolean = false,
+    // Appended verbatim to the module build file (e.g. a `dependencies { }` block).
+    val extraBuildContent: String = "",
 )
 
 /**
@@ -122,6 +125,9 @@ data class LibsCatalog(
     val includeDetektComposeRules: Boolean = true,
 )
 
+/** Root-relative path [createQualityProject] copies its `rulesJar` to. */
+const val CUSTOM_RULES_JAR_PATH = "libs/custom-rules.jar"
+
 /**
  * Generates a multi-module Gradle project applying `ru.kode.android.app-quality.foundation`
  * at the ROOT project (the plugin's real usage mode) with the given extension configuration.
@@ -136,16 +142,23 @@ fun File.createQualityProject(
     libsCatalog: LibsCatalog = LibsCatalog(),
     gradleProperties: Map<String, String> = emptyMap(),
     useKotlinDsl: Boolean = false,
+    detektEngine: Int = 1,
+    declareDetekt2Plugin: Boolean = detektEngine == 2,
 ) {
     val settingsFileName = if (useKotlinDsl) "settings.gradle.kts" else "settings.gradle"
     val buildFileName = if (useKotlinDsl) "build.gradle.kts" else "build.gradle"
     writeFileVerbose(getFile(settingsFileName), settingsFileContent(modules, libsCatalog, useKotlinDsl))
-    writeFileVerbose(getFile(buildFileName), rootBuildFileContent(qualityConfig, useKotlinDsl))
+    writeFileVerbose(
+        getFile(buildFileName),
+        rootBuildFileContent(qualityConfig, useKotlinDsl, declareDetekt2Plugin),
+    )
     if (libsCatalog.generate) {
         writeFileVerbose(getFile(libsCatalog.tomlPath()), libsCatalogContent(libsCatalog))
     }
 
-    val properties = mapOf("org.gradle.jvmargs" to "-Xmx2g") + gradleProperties
+    val engineProperty =
+        if (detektEngine == 1) emptyMap() else mapOf("ru.kode.appQuality.detektEngine" to "$detektEngine")
+    val properties = mapOf("org.gradle.jvmargs" to "-Xmx2g") + engineProperty + gradleProperties
     writeFileVerbose(
         getFile("gradle.properties"),
         properties.entries.joinToString("\n") { (key, value) -> "$key=$value" },
@@ -157,7 +170,7 @@ fun File.createQualityProject(
 
     rootEditorConfigContent?.let { writeFileVerbose(getFile(".editorconfig"), it) }
     extraRootFiles.forEach { (path, content) -> writeFileVerbose(getFile(path), content) }
-    rulesJar?.let { jar -> jar.copyTo(getFile("libs/detekt-rules-1.4.0.jar"), overwrite = true) }
+    rulesJar?.let { jar -> jar.copyTo(getFile(CUSTOM_RULES_JAR_PATH), overwrite = true) }
 
     modules.forEach { module -> writeModule(module, useKotlinDsl) }
 }
@@ -168,7 +181,10 @@ private fun File.writeModule(
 ) {
     val moduleDir = File(this, module.name)
     val buildFileName = if (useKotlinDsl) "build.gradle.kts" else "build.gradle"
-    writeFileVerbose(moduleDir.getFile(buildFileName), moduleBuildFileContent(module, useKotlinDsl))
+    writeFileVerbose(
+        moduleDir.getFile(buildFileName),
+        moduleBuildFileContent(module, useKotlinDsl) + "\n" + module.extraBuildContent.trimIndent(),
+    )
 
     if (module.type == ModuleType.AndroidApp || module.type == ModuleType.AndroidLib) {
         writeFileVerbose(
@@ -262,6 +278,7 @@ private fun settingsFileContent(
 private fun rootBuildFileContent(
     config: QualityConfig,
     useKotlinDsl: Boolean,
+    declareDetekt2Plugin: Boolean,
 ): String {
     val lines = mutableListOf<String>()
     config.verboseLogging?.let { lines += "verboseLogging.set($it)" }
@@ -287,6 +304,7 @@ private fun rootBuildFileContent(
             lines += sources.slotLines("detekt.sources", useKotlinDsl)
         }
         detekt.typeResolution?.let { lines += "detekt.typeResolution.set($it)" }
+        detekt.buildUponDefaultConfig?.let { lines += "detekt.buildUponDefaultConfig.set($it)" }
         lines += detekt.kotlin.platformLines("kotlin")
         lines += detekt.android.platformLines("android")
         lines += detekt.compose.platformLines("compose")
@@ -307,12 +325,20 @@ private fun rootBuildFileContent(
             """.trimIndent()
         }
 
-    val pluginsBlock =
-        if (useKotlinDsl) {
-            "id(\"ru.kode.android.app-quality.foundation\")"
-        } else {
-            "id 'ru.kode.android.app-quality.foundation'"
+    // No versions: TestKit's injected plugin classpath provides both plugins.
+    val detekt2Plugin =
+        when {
+            !declareDetekt2Plugin -> ""
+            useKotlinDsl -> "id(\"dev.detekt\") apply false\n"
+            else -> "id 'dev.detekt' apply false\n"
         }
+    val pluginsBlock =
+        detekt2Plugin +
+            if (useKotlinDsl) {
+                "id(\"ru.kode.android.app-quality.foundation\")"
+            } else {
+                "id 'ru.kode.android.app-quality.foundation'"
+            }
     return """
         plugins {
             $pluginsBlock
@@ -461,9 +487,6 @@ private fun moduleBuildFileContent(
                         sourceCompatibility = JavaVersion.VERSION_17
                         targetCompatibility = JavaVersion.VERSION_17
                     }
-                    kotlinOptions {
-                        jvmTarget = "17"
-                    }
                     """
                     } else {
                         """
@@ -471,11 +494,21 @@ private fun moduleBuildFileContent(
                         sourceCompatibility JavaVersion.VERSION_17
                         targetCompatibility JavaVersion.VERSION_17
                     }
-                    kotlinOptions {
-                        jvmTarget = "17"
-                    }
                     """
                     }
+                } else {
+                    ""
+                }
+            // Project-level compilerOptions (KGP 2.0+): kotlinOptions is an error from Kotlin 2.2.
+            val kotlinJvmTargetBlock =
+                if (module.applyKotlinAndroidPlugin) {
+                    """
+                kotlin {
+                    compilerOptions {
+                        jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)
+                    }
+                }
+                """
                 } else {
                     ""
                 }
@@ -510,6 +543,7 @@ private fun moduleBuildFileContent(
             }
 
             $androidTargetBlock
+            $kotlinJvmTargetBlock
             """.trimIndent().removeBlankLines()
         }
 
@@ -575,7 +609,7 @@ private fun libsCatalogContent(catalog: LibsCatalog): String {
         [versions]
         detekt = "1.23.8"
         ktlintCli = "1.8.0"
-        detektComposeRules = "1.4.0"
+        detektComposeRules = "2.1.0"
 
         [libraries]
         ${libraries.joinToString("\n        ")}

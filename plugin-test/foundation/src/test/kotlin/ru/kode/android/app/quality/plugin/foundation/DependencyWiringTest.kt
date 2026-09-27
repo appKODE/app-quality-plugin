@@ -9,6 +9,7 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
 import ru.kode.android.app.quality.plugin.foundation.messages.missingDependencyFileMessage
 import ru.kode.android.app.quality.plugin.foundation.messages.noEditorConfigFileMessage
+import ru.kode.android.app.quality.plugin.test.utils.CUSTOM_RULES_JAR_PATH
 import ru.kode.android.app.quality.plugin.test.utils.DependencySlot
 import ru.kode.android.app.quality.plugin.test.utils.DetektBlock
 import ru.kode.android.app.quality.plugin.test.utils.KtlintBlock
@@ -117,7 +118,7 @@ class DependencyWiringTest {
                                 PlatformDetektBlock(
                                     rules =
                                         DependencySlot(
-                                            notations = listOf("ru.kode:detekt-rules-compose:1.4.0"),
+                                            notations = listOf("ru.kode:detekt-rules-compose:2.1.0"),
                                             useDefaults = false,
                                         ),
                                 ),
@@ -183,7 +184,6 @@ class DependencyWiringTest {
     @Test
     fun `custom rules jar stacks on top of the default formatting rules`() {
         val rulesJar = exampleRulesJar()
-        assumeTrue(rulesJar != null, "example-project rules jar not found; skipping")
 
         // Defaults stay ON: the kode rule set must validate (custom jar present) AND the
         // formatting rule set must validate + fire (default detekt-formatting present) —
@@ -214,7 +214,6 @@ class DependencyWiringTest {
     @Test
     fun `useDefaults false drops the default formatting rules`() {
         val rulesJar = exampleRulesJar()
-        assumeTrue(rulesJar != null, "example-project rules jar not found; skipping")
 
         // Same setup as above but defaults OFF: detekt-formatting is gone, so the config's
         // `formatting:` section now fails validation as an unknown rule set — while the kode
@@ -237,7 +236,7 @@ class DependencyWiringTest {
                                 PlatformDetektBlock(
                                     rules =
                                         DependencySlot(
-                                            files = listOf("libs/detekt-rules-1.4.0.jar"),
+                                            files = listOf(CUSTOM_RULES_JAR_PATH),
                                             useDefaults = false,
                                         ),
                                 ),
@@ -261,7 +260,6 @@ class DependencyWiringTest {
     @Test
     fun `nested groovy closure blocks configure the extension end to end`() {
         val rulesJar = exampleRulesJar()
-        assumeTrue(rulesJar != null, "example-project rules jar not found; skipping")
 
         // Exercises the Closure overloads of every level: ktlint { cli { ... } } and
         // detekt { kotlin { rules { ... } } } in a plain Groovy script — the kode rule set
@@ -288,7 +286,7 @@ class DependencyWiringTest {
                         detekt {
                             kotlin {
                                 rules {
-                                    from(files(rootProject.layout.projectDirectory.file("libs/detekt-rules-1.4.0.jar")))
+                                    from(files(rootProject.layout.projectDirectory.file("libs/custom-rules.jar")))
                                 }
                             }
                         }
@@ -490,7 +488,7 @@ class DependencyWiringTest {
                     "gradle/libs.versions.toml" to
                         """
                         [versions]
-                        detektComposeRules = "1.4.0"
+                        detektComposeRules = "2.1.0"
 
                         [libraries]
                         detekt-compose-rules = { module = "ru.kode:detekt-rules-compose-BOGUS", version.ref = "detektComposeRules" }
