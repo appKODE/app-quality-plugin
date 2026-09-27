@@ -1,0 +1,32 @@
+name: Sample Consumer
+
+# Publishes the plugin to mavenLocal and applies it by coordinates in samples/consumer, on both
+# detekt engines — the artifact as a real (JVM-only, no AGP) project gets it.
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - '*'
+
+jobs:
+  consumer:
+    strategy:
+      matrix:
+        engine: [1, 2]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repo
+        uses: actions/checkout@v4
+      - name: Setup java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+      - name: Publish plugin to mavenLocal
+        run: ./gradlew -p plugin-build publishToMavenLocal
+      - name: Run pipelineCheck in the sample consumer
+        run: ./gradlew -p samples/consumer pipelineCheck -Pru.kode.appQuality.detektEngine=${{ matrix.engine }}

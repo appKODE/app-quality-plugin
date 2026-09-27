@@ -5,6 +5,76 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.0.0] - Unreleased
+
+### Changed
+
+- **Breaking:** the `kode` rule set is resolved from Maven Central instead of a jar bundled in the
+  plugin. Default `detekt.android.rules` is `ru.kode:detekt-rules:2.0.0` (engine 1) or
+  `ru.kode:detekt-rules-detekt2:2.0.0` (engine 2); default `detekt.compose.rules` is
+  `ru.kode:detekt-rules-compose:2.1.0` / `ru.kode:detekt-rules-compose-detekt2:2.1.0`. A matching
+  `libs` catalog alias still wins (`detekt-rules` / `detekt-rules-detekt2`, `detekt-compose-rules` /
+  `detekt-rules-compose-detekt2`).
+- **Breaking:** removed the bundled `kode-android-rules-1.4.0.jar`, the
+  `generateDefaultDetektAndroidRulesJar` task and the `rules.defaultFiles` DSL.
+- **Breaking:** default Kotlin config: `EnumNaming` now requires PascalCase entries
+  (`'[A-Z](?![A-Z]*$)[a-zA-Z0-9]*|[A-Z]'`): multi-letter ALL-CAPS entries such as `GET` or `VK`
+  are reported, single letters are still allowed.
+- Default Android config: `MissingTypeDeclaration`, `ComponentFunctionCall` and `UseOnStartEmit` are inactive,
+  `BlockingSqlDelightCall` targets `app.cash.sqldelight`.
+- Default Compose config: dropped `ModifierParameterPosition` and `ComposeFunctionName`, unknown to
+  `detekt-rules-compose` 2.x.
+- Built with Kotlin 2.4.20, AGP 9.4.1, Gradle 9.8.0.
+
+### Added
+
+- detekt engine switch: Gradle property `ru.kode.appQuality.detektEngine=1|2` (default `1`).
+  Engine 2 runs detekt 2 (`dev.detekt` 2.0.0-alpha.6); the consumer puts it on the plugin
+  classpath with `id("dev.detekt") version "2.0.0-alpha.6" apply false`. The Kotlin slot then uses
+  `dev.detekt:detekt-rules-ktlint-wrapper` (catalog alias `detekt-rules-ktlint-wrapper`) and a
+  detekt 2 flavour of the bundled Kotlin config.
+- `detekt.buildUponDefaultConfig` (default `false`).
+- A warning when a leftover `libs/detekt-rules-*.jar` is found (the `kode` rules would run twice).
+- Clear failures for an unsupported engine value, engine 2 without `dev.detekt` on the classpath,
+  and a module applying the other engine's detekt plugin.
+
+### Fixed
+
+- A JVM-only build without AGP on the classpath crashed with
+  `ClassNotFoundException: AndroidComponentsExtension`.
+
+### Upgrading from 2.x
+
+1. Delete `libs/detekt-rules-1.4.0.jar` and any `rules { from(files(".../detekt-rules-1.4.0.jar")) }`
+   entry; the rules now come from Maven Central, so `mavenCentral()` must be in the project
+   repositories. To keep a jar instead, set `detekt.android.rules.useDefaults.set(false)`.
+2. Remove `rules.defaultFiles` usages.
+3. Expect `EnumNaming` findings on ALL-CAPS enum entries, new findings from the fixed rules in
+   `ru.kode:detekt-rules` 2.0.0 and `detekt-rules-compose` 2.1.0 (e.g.
+   `ComposableParametersOrdering`), and fewer from the rules now inactive by default; refresh
+   baselines.
+4. Engine 2 (opt-in):
+   - add `id("dev.detekt") version "2.0.0-alpha.6" apply false` to the root `plugins {}` and set
+     `ru.kode.appQuality.detektEngine=2`;
+   - detekt 2 validates custom configs strictly: it rejects the `build:` and `output-reports:`
+     keys, removed rules and renamed properties (`threshold` → `allowed*`); detekt 1 reports at
+     `>= threshold`, detekt 2 above `allowed*`, so use `threshold - 1` (except `NamedArguments`
+     and `NestedScopeFunctions`, which keep their value); the bundled detekt 2 config does so;
+     `config.excludes` must be a list (`[]`, not `''`);
+   - drop engine 1 rule artifacts (e.g. `ru.kode:detekt-rules-compose:1.4.0`) from `rules {}`:
+     detekt 2 merges every plugin jar's default config and fails with `found duplicate key`;
+   - several rules are renamed or moved (`UnusedImports` → `UnusedImport`,
+     `UntilInsteadOfRangeTo` → `RangeUntilInsteadOfRangeTo`, `UnusedPrivateMember` →
+     `UnusedPrivateFunction`/`UnusedPrivateProperty`); update custom configs and baselines;
+   - `UnusedPrivateProperty` and `UseDataClass` only report with `detekt.typeResolution` on;
+   - `CyclomaticComplexMethod` counts some constructs higher than detekt 1 with the same
+     threshold, so large `when`/branching functions may newly be reported;
+   - needs KGP 2.1.21+ (`KotlinJvmExtension`); engine 1 still works with KGP 2.0.21;
+   - the detekt 2 task's `basePath` is an absolute input: a checkout at another path misses the
+     build cache; with no report enabled the task declares no outputs and is never cached;
+   - the custom rule sets must be built against `dev.detekt:detekt-api`.
+5. Isolated projects are not supported (the root-applied plugin configures subprojects), as in 2.x.
+
 ## [2.0.3] - 2026-08-22
 
 ### Fixed

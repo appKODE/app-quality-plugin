@@ -15,7 +15,4 @@ tasks.register("assemble") {
 appQualityFoundation {
     verboseLogging.set(true)
     ktlint.projectConfig.set(rootProject.layout.projectDirectory.file(".editorconfig"))
-    detekt.kotlin.rules {
-        from(files(rootProject.layout.projectDirectory.file("libs/detekt-rules-1.4.0.jar")))
-    }
 }
