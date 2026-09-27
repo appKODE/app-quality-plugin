@@ -83,6 +83,14 @@ abstract class DetektConfig
             configureGroovy(closure, sources)
         }
 
+        /**
+         * Use detekt's own default config as the base and apply the resolved configs on top of
+         * it. Default `false`: the bundled configs are complete on their own.
+         */
+        val buildUponDefaultConfig: Property<Boolean> =
+            objectFactory.property(Boolean::class.java)
+                .convention(false)
+
         val typeResolution: Property<Boolean> =
             objectFactory.property(Boolean::class.java)
                 .convention(false)

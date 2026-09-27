@@ -108,19 +108,6 @@ internal fun Project.wireDependencies(
             if (use) slot.defaults else providers.provider { emptyList<Dependency>() }
         },
     )
-    // File-based defaults (see ExternalDependencyConfig.defaultFiles) go through the same
-    // DependencyCollector mechanism as `from`, not the plain `defaults` ListProperty above —
-    // required for configuration-cache compatibility.
-    configuration.dependencies.addAllLater(
-        slot.useDefaults.flatMap { use ->
-            if (use) slot.defaultFiles.dependencies else providers.provider { emptySet<Dependency>() }
-        },
-    )
-    configuration.dependencyConstraints.addAllLater(
-        slot.useDefaults.flatMap { use ->
-            if (use) slot.defaultFiles.dependencyConstraints else providers.provider { emptySet() }
-        },
-    )
 }
 
 /**

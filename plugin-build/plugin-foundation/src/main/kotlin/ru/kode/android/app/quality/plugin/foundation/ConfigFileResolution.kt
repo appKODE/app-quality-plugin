@@ -4,14 +4,12 @@ import org.gradle.api.GradleException
 import org.gradle.api.Project
 import org.gradle.api.file.RegularFile
 import org.gradle.api.provider.Provider
+import ru.kode.android.app.quality.plugin.foundation.engine.DetektEngine
 import ru.kode.android.app.quality.plugin.foundation.extension.AppQualityFoundationExtension
+import ru.kode.android.app.quality.plugin.foundation.messages.legacyRulesJarMessage
 import ru.kode.android.app.quality.plugin.foundation.task.GenerateDefaultConfigFileTask
-import ru.kode.android.app.quality.plugin.foundation.task.GenerateDefaultRulesJarTask
 import ru.kode.android.app.quality.plugin.foundation.utils.catalogLibraryOrDefault
-import java.util.Base64
 import java.util.Properties
-
-internal const val KODE_ANDROID_RULES_JAR_NAME = "kode-android-rules-1.4.0.jar"
 
 private val defaultToolVersions: Properties by lazy { readBundledProperties("default-tool-versions.properties") }
 
@@ -25,7 +23,6 @@ internal data class DefaultConfigFiles(
     val detektKotlin: Provider<RegularFile>,
     val detektAndroid: Provider<RegularFile>,
     val detektCompose: Provider<RegularFile>,
-    val detektAndroidRulesJar: Provider<RegularFile>,
     val editorconfig: Provider<RegularFile>,
 )
 
@@ -39,19 +36,31 @@ internal data class DefaultConfigFiles(
  */
 internal fun Project.configureConventions(
     extension: AppQualityFoundationExtension,
-    defaultConfigs: DefaultConfigFiles,
+    engine: DetektEngine,
 ) {
     extension.gitHooks.convention(rootProject.layout.projectDirectory.file(".githooks"))
     extension.ktlint.cli.defaults.add(
         catalogLibraryOrDefault("ktlint-cli", defaultToolVersion("ktlint-cli")),
     )
-    extension.detekt.kotlin.rules.defaults.add(
-        catalogLibraryOrDefault("detekt-formatting", defaultToolVersion("detekt-formatting")),
-    )
-    extension.detekt.compose.rules.defaults.add(
-        catalogLibraryOrDefault("detekt-compose-rules", defaultToolVersion("detekt-compose-rules")),
-    )
-    extension.detekt.android.rules.defaultFiles.add(files(defaultConfigs.detektAndroidRulesJar))
+    listOf(
+        extension.detekt.kotlin to engine.kotlinRulesAlias,
+        extension.detekt.android to engine.androidRulesAlias,
+        extension.detekt.compose to engine.composeRulesAlias,
+    ).forEach { (platform, alias) ->
+        platform.rules.defaults.add(catalogLibraryOrDefault(alias, defaultToolVersion(alias)))
+    }
+}
+
+private val LEGACY_RULES_JAR_REGEX = Regex("""(detekt-rules|kode-android-rules)-1\.\d+\.\d+\.jar""")
+
+/**
+ * AQP 2.x consumers checked the KODE rules jar in under `<root>/libs/`; 3.x resolves
+ * `ru.kode:detekt-rules` by coordinates, so a still-wired copy would load the `kode` rule set twice.
+ */
+internal fun Project.warnAboutLegacyRulesJars() {
+    rootProject.layout.projectDirectory.dir("libs").asFile
+        .listFiles { file -> LEGACY_RULES_JAR_REGEX.matches(file.name) }
+        ?.forEach { jar -> logger.warn(legacyRulesJarMessage(jar)) }
 }
 
 /**
@@ -59,7 +68,7 @@ internal fun Project.configureConventions(
  * directory. Consumers depend on the outputs through providers, so the tasks run only when
  * a default is actually needed and nothing is written at configuration time.
  */
-internal fun Project.registerDefaultConfigTasks(): DefaultConfigFiles {
+internal fun Project.registerDefaultConfigTasks(engine: DetektEngine): DefaultConfigFiles {
     fun register(
         taskName: String,
         resourcePath: String,
@@ -73,27 +82,11 @@ internal fun Project.registerDefaultConfigTasks(): DefaultConfigFiles {
         return task.flatMap { it.outputFile }
     }
 
-    fun registerJar(
-        taskName: String,
-        resourcePath: String,
-        outputPath: String,
-    ): Provider<RegularFile> {
-        val task =
-            tasks.register(taskName, GenerateDefaultRulesJarTask::class.java) { t ->
-                t.resourceContentBase64.set(
-                    providers.provider {
-                        Base64.getEncoder().encodeToString(readBundledResourceBytes(resourcePath))
-                    },
-                )
-                t.outputFile.set(layout.buildDirectory.file(outputPath))
-            }
-        return task.flatMap { it.outputFile }
-    }
     return DefaultConfigFiles(
         detektKotlin =
             register(
                 "generateDefaultDetektKotlinConfig",
-                "detekt/default.kotlin-config.yml",
+                engine.kotlinConfigResource,
                 "app-quality/detekt/kotlin-config.yml",
             ),
         detektAndroid =
@@ -107,12 +100,6 @@ internal fun Project.registerDefaultConfigTasks(): DefaultConfigFiles {
                 "generateDefaultDetektComposeConfig",
                 "detekt/default.compose-config.yml",
                 "app-quality/detekt/compose-config.yml",
-            ),
-        detektAndroidRulesJar =
-            registerJar(
-                "generateDefaultDetektAndroidRulesJar",
-                "detekt/rules/$KODE_ANDROID_RULES_JAR_NAME",
-                "app-quality/detekt/rules/$KODE_ANDROID_RULES_JAR_NAME",
             ),
         editorconfig =
             register(
@@ -135,8 +122,3 @@ private fun readBundledProperties(path: String): Properties {
             ?: throw GradleException("Default file ($path) not found in plugin resources")
     return stream.use { Properties().apply { load(it) } }
 }
-
-private fun readBundledResourceBytes(path: String): ByteArray =
-    PluginResources::class.java.getResourceAsStream(path)
-        ?.use { it.readBytes() }
-        ?: throw GradleException("Default file ($path) not found in plugin resources")

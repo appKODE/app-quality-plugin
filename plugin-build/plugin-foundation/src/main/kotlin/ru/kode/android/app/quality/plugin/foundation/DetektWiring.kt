@@ -1,17 +1,20 @@
 package ru.kode.android.app.quality.plugin.foundation
 
-import io.gitlab.arturbosch.detekt.Detekt
-import io.gitlab.arturbosch.detekt.DetektCreateBaselineTask
-import io.gitlab.arturbosch.detekt.DetektPlugin
-import io.gitlab.arturbosch.detekt.extensions.DetektExtension
 import org.gradle.api.GradleException
 import org.gradle.api.Project
+import org.gradle.api.file.FileCollection
 import org.gradle.api.file.RegularFile
 import org.gradle.api.provider.Provider
+import org.gradle.api.tasks.SourceTask
 import org.jetbrains.kotlin.gradle.tasks.KotlinJvmCompile
+import ru.kode.android.app.quality.plugin.foundation.config.DetektConfig
 import ru.kode.android.app.quality.plugin.foundation.config.PlatformDetektConfig
 import ru.kode.android.app.quality.plugin.foundation.config.hasNoUserAdditionsProvider
+import ru.kode.android.app.quality.plugin.foundation.engine.DetektEngine
+import ru.kode.android.app.quality.plugin.foundation.engine.DetektSettings
 import ru.kode.android.app.quality.plugin.foundation.extension.AppQualityFoundationExtension
+import ru.kode.android.app.quality.plugin.foundation.messages.bothDetektPluginsMessage
+import ru.kode.android.app.quality.plugin.foundation.messages.missingDetektConfigFileMessage
 import ru.kode.android.app.quality.plugin.foundation.messages.missingDependencyFileMessage
 import ru.kode.android.app.quality.plugin.foundation.messages.missingKodeRuleSetDependencyMessage
 import ru.kode.android.app.quality.plugin.foundation.utils.activatesKodeRuleSet
@@ -43,9 +46,15 @@ internal fun Project.configureSubprojectsDetekt(
     extension: AppQualityFoundationExtension,
     loggerProvider: Provider<LoggerService>,
     defaults: DefaultConfigFiles,
+    engine: DetektEngine,
 ) {
     subprojects { subproject ->
-        subproject.configureProjectDetekt(extension, loggerProvider, defaults)
+        subproject.pluginManager.withPlugin(engine.otherEnginePluginId) {
+            throw GradleException(
+                bothDetektPluginsMessage(subproject.path, engine.pluginId, engine.otherEnginePluginId),
+            )
+        }
+        subproject.configureProjectDetekt(extension, loggerProvider, defaults, engine)
     }
 }
 
@@ -60,6 +69,7 @@ private fun Project.configureProjectDetekt(
     extension: AppQualityFoundationExtension,
     loggerProvider: Provider<LoggerService>,
     defaults: DefaultConfigFiles,
+    engine: DetektEngine,
 ) {
     val configuredPlatforms = mutableSetOf<DetektPlatform>()
 
@@ -70,17 +80,26 @@ private fun Project.configureProjectDetekt(
         bundledDefault: Provider<RegularFile>,
     ) {
         if (!configuredPlatforms.add(platform)) return
-        pluginManager.apply(DetektPlugin::class.java)
+        engine.applyPlugin(this)
         if (configuredPlatforms.size == 1) {
-            configureDetektTasks(extension, loggerProvider)
+            engine.configureTasks(this, extension, loggerProvider)
         }
+        val slotName = "detekt.${platform.name.lowercase()}.projectConfig"
         val configFile =
             resolveConfigFile(
-                override = platformConfig.projectConfig,
+                // Only an explicit override can point at a missing file; the bundled default is
+                // produced by a task and legitimately absent until that task runs.
+                override =
+                    platformConfig.projectConfig.map { file ->
+                        if (!file.asFile.exists()) {
+                            throw GradleException(missingDetektConfigFileMessage(file.asFile, slotName))
+                        }
+                        file
+                    },
                 candidate = layout.projectDirectory.file(configFileName),
                 bundledDefault = bundledDefault,
             )
-        configureDetekt(extension, platformConfig, configFile, platform.name.lowercase(), configuredPlatforms)
+        configureDetekt(extension, platformConfig, configFile, platform.name.lowercase(), configuredPlatforms, engine)
     }
 
     listOf(
@@ -134,6 +153,7 @@ private fun Project.configureDetekt(
     configFile: Provider<RegularFile>,
     platformName: String,
     configuredPlatforms: Set<DetektPlatform>,
+    engine: DetektEngine,
 ) {
     configurations.named("detektPlugins").configure { detektPlugins ->
         wireDependencies(detektPlugins, platformConfig.rules) { file ->
@@ -141,14 +161,8 @@ private fun Project.configureDetekt(
         }
     }
 
-    // Composed entirely from Provider combinators (no closure captures a live domain object
-    // like `extension` or an `ExternalDependencyConfig` directly) — Gradle's config-cache
-    // support for Provider graphs is structural, but naive closures capturing a live object
-    // get naively Java-serialized instead, walking its ENTIRE reachable graph. That previously
-    // broke config-cache for EVERY platform's detekt task (not just android's), because
-    // `extension.detekt.android.rules.defaultFiles` (holding the bundled kode jar's
-    // `FileCollectionDependency`, unserializable by Gradle) was reachable from any closure
-    // that captured `extension` as a whole, even one that never actually reads that field.
+    // Composed entirely from Provider combinators: no closure captures a live domain object like
+    // `extension` directly, which Gradle's configuration cache would Java-serialize wholesale.
     val noKodeJarWired = noKodeRuleSetJarWiredAnywhereProvider(extension, configuredPlatforms)
     val validatedConfigFile =
         configFile.map { file ->
@@ -159,33 +173,17 @@ private fun Project.configureDetekt(
             file
         }
 
-    extensions.configure(DetektExtension::class.java) { detektExtension ->
-        detektExtension.config.from(validatedConfigFile)
-        // `extension` lives on the root project, and this callback fires while a SUBPROJECT's
-        // plugins are being applied — reading the extension's Property values here directly
-        // would depend on the root project's own build script having already run its
-        // `appQualityFoundation { }` block, which Gradle does not guarantee relative to
-        // subproject evaluation. Read immediately if the root is already evaluated (the common
-        // case: root config runs before subprojects); otherwise defer to its `afterEvaluate` —
-        // it cannot be registered unconditionally, since Gradle forbids `afterEvaluate` once a
-        // project has finished evaluating.
-        val applyExtensionValues = {
-            detektExtension.debug = extension.verboseLogging.get()
-            detektExtension.ignoredBuildTypes =
-                (detektExtension.ignoredBuildTypes + extension.detekt.ignoredBuildTypes.get()).distinct()
-            extension.detekt.baseline.orNull?.let { baseline ->
-                // Re-root under this subproject's own directory, keeping only the filename: the
-                // configured `RegularFileProperty` is a single root-scoped value, so using it
-                // verbatim would point every subproject at the identical file, and their
-                // `detektBaseline*` tasks would overwrite each other's findings.
-                detektExtension.baseline = layout.projectDirectory.file(baseline.asFile.name).asFile
-            }
-        }
-        if (rootProject.state.executed) {
-            applyExtensionValues()
-        } else {
-            rootProject.afterEvaluate { applyExtensionValues() }
-        }
+    engine.configureExtension(this, validatedConfigFile) {
+        DetektSettings(
+            debug = extension.verboseLogging.get(),
+            ignoredBuildTypes = extension.detekt.ignoredBuildTypes.get(),
+            // Re-root under this subproject's own directory, keeping only the filename: the
+            // configured `RegularFileProperty` is a single root-scoped value, so using it
+            // verbatim would point every subproject at the identical file, and their
+            // `detektBaseline*` tasks would overwrite each other's findings.
+            baseline = extension.detekt.baseline.orNull?.let { layout.projectDirectory.file(it.asFile.name).asFile },
+            buildUponDefaultConfig = extension.detekt.buildUponDefaultConfig.get(),
+        )
     }
 }
 
@@ -194,7 +192,7 @@ private fun Project.configureDetekt(
  * into any platform's `rules` slot is on the classpath for all of them — this must check all 3
  * slots, not just the platform being configured, or it false-positives whenever the jar was
  * wired through a different platform (e.g. only `detekt.kotlin.rules`). `detekt.android.rules`
- * now has a real bundled default (the kode jar itself), so it satisfies this check whenever
+ * defaults to the `ru.kode:detekt-rules` coordinates, so it satisfies this check whenever
  * `useDefaults` is on — but ONLY if the android platform is actually configured for this
  * project: `useDefaults` on that slot defaults to `true` even for a project with no Android
  * module at all, where the default never reaches `detektPlugins` because `configureDetekt`
@@ -225,71 +223,56 @@ private fun noKodeRuleSetJarWiredAnywhereProvider(
 }
 
 /**
- * Tunes detekt tasks. Runs inside `configureEach`, which fires at task-graph time — after the
- * consumer's extension block — so all extension reads here observe the configured values.
+ * Engine-agnostic part of detekt task tuning. Runs inside `configureEach`, which fires at
+ * task-graph time — after the consumer's extension block — so extension reads observe the
+ * configured values.
  */
-private fun Project.configureDetektTasks(
-    extension: AppQualityFoundationExtension,
-    loggerProvider: Provider<LoggerService>,
+internal fun Project.configureDetektSources(
+    task: SourceTask,
+    detektConfig: DetektConfig,
 ) {
-    val detektConfig = extension.detekt
-
-    tasks.withType(DetektCreateBaselineTask::class.java).configureEach { task ->
-        task.usesService(loggerProvider)
-        task.jvmTarget = extension.jvmTarget.get().target
-        task.debug.set(extension.verboseLogging)
-    }
-
-    tasks.withType(Detekt::class.java).configureEach { task ->
-        task.usesService(loggerProvider)
-        task.debug = extension.verboseLogging.get()
-        task.jvmTarget = extension.jvmTarget.get().target
-
-        if (detektConfig.typeResolution.get()) {
-            val variantName = task.name.removePrefix("detekt")
-            val compileTask =
-                tasks.withType(KotlinJvmCompile::class.java)
-                    .find { it.name.contains(variantName, ignoreCase = true) }
-            if (compileTask != null) {
-                task.classpath.setFrom(compileTask.libraries)
-            }
+    val includePatterns =
+        if (detektConfig.sources.useDefaults.get()) {
+            DEFAULT_DETEKT_INCLUDE_PATTERNS + detektConfig.sources.include.get()
+        } else {
+            detektConfig.sources.include.get()
         }
-
-        val includePatterns =
-            if (detektConfig.sources.useDefaults.get()) {
-                DEFAULT_DETEKT_INCLUDE_PATTERNS + detektConfig.sources.include.get()
+    val excludePatterns = DEFAULT_DETEKT_EXCLUDE_PATTERNS + detektConfig.sources.exclude.get()
+    task.source =
+        fileTree(layout.projectDirectory) { tree ->
+            if (includePatterns.isEmpty()) {
+                // Gradle's PatternFilterable treats an empty include list as "no
+                // restriction" (matches everything), so exclude everything instead.
+                tree.exclude("**")
             } else {
-                detektConfig.sources.include.get()
+                tree.include(includePatterns)
+                tree.exclude(excludePatterns)
             }
-        val excludePatterns = DEFAULT_DETEKT_EXCLUDE_PATTERNS + detektConfig.sources.exclude.get()
-        task.source =
-            fileTree(layout.projectDirectory) { tree ->
-                if (includePatterns.isEmpty()) {
-                    // Gradle's PatternFilterable treats an empty include list as "no
-                    // restriction" (matches everything), so exclude everything instead.
-                    tree.exclude("**")
-                } else {
-                    tree.include(includePatterns)
-                    tree.exclude(excludePatterns)
-                }
-            }
-
-        // Defense-in-depth: AGP/KMP Android-target variant tasks (e.g. detektAndroidDebug) have
-        // their `source` reassigned later by detekt-gradle-plugin's own variant-registration
-        // callback, from the AGP variant's sourceSets — which already treats the KSP output dir
-        // as a first-class source root, silently overriding the exclude patterns above. A glob
-        // exclude can't catch this either: for those variants the source root itself already
-        // sits inside build/generated/..., so a root-relative path never contains that segment
-        // again. `exclude(Spec)` is lazy and additive, evaluated against whatever `source` ends
-        // up being at execution time, and matches on the absolute file path instead.
-        val generatedPathMarker = "${File.separator}build${File.separator}generated${File.separator}"
-        task.exclude { fileTreeElement -> fileTreeElement.file.path.contains(generatedPathMarker) }
-
-        task.reports {
-            it.xml.required.set(detektConfig.xmlReportEnabled)
-            it.html.required.set(false)
-            it.txt.required.set(false)
-            it.sarif.required.set(detektConfig.sarifReportEnabled)
         }
-    }
+
+    // Defense-in-depth: AGP/KMP Android-target variant tasks (e.g. detektAndroidDebug) have
+    // their `source` reassigned later by detekt-gradle-plugin's own variant-registration
+    // callback, from the AGP variant's sourceSets — which already treats the KSP output dir
+    // as a first-class source root, silently overriding the exclude patterns above. A glob
+    // exclude can't catch this either: for those variants the source root itself already
+    // sits inside build/generated/..., so a root-relative path never contains that segment
+    // again. `exclude(Spec)` is lazy and additive, evaluated against whatever `source` ends
+    // up being at execution time, and matches on the absolute file path instead.
+    val generatedPathMarker = "${File.separator}build${File.separator}generated${File.separator}"
+    task.exclude { fileTreeElement -> fileTreeElement.file.path.contains(generatedPathMarker) }
+}
+
+/**
+ * With `detekt.typeResolution` on, the compile classpath of the Kotlin compile task matching
+ * the detekt task's variant; `null` when off or no such compile task exists.
+ */
+internal fun Project.typeResolutionLibraries(
+    taskName: String,
+    detektConfig: DetektConfig,
+): FileCollection? {
+    if (!detektConfig.typeResolution.get()) return null
+    val variantName = taskName.removePrefix("detekt")
+    return tasks.withType(KotlinJvmCompile::class.java)
+        .find { it.name.contains(variantName, ignoreCase = true) }
+        ?.libraries
 }

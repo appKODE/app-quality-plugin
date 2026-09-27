@@ -9,8 +9,16 @@ kode:
     active: true
   UseOnStartEmit:
     active: false
+  ComponentFunctionCall:
+    active: false
   BlockingSqlDelightCall:
     active: true
+    sqlDelightPackage: 'app.cash.sqldelight'
   ImmutableDataClass:
     active: true
     ignoreDescendantsOf: [ "FlowEvent" ]
+  MissingTypeDeclaration:
+    active: false
+    ignoreInClassesDerivedFrom: []
+    ignoreInInterfacesDerivedFrom: []
+    ignorePropertiesOfType: []
