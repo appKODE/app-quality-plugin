@@ -199,9 +199,8 @@ private fun File.writeModule(
     }
 }
 
-private fun LibsCatalog.tomlPath(): String {
-    return if (name == "libs") "gradle/libs.versions.toml" else "gradle/$name.versions.toml"
-}
+private fun LibsCatalog.tomlPath(): String =
+    if (name == "libs") "gradle/libs.versions.toml" else "gradle/$name.versions.toml"
 
 private fun settingsFileContent(
     modules: List<ModuleSpec>,
@@ -366,9 +365,10 @@ private fun SourcePatternsSlot.slotLines(
     return listOf("$path {") + inner.map { "    $it" } + "}"
 }
 
-private fun List<String>.toGroovyRootFiles(): String {
-    return joinToString { path -> "rootProject.layout.projectDirectory.file(\"$path\")" }
-}
+private fun List<String>.toGroovyRootFiles(): String =
+    joinToString { path ->
+        "rootProject.layout.projectDirectory.file(\"$path\")"
+    }
 
 private fun ModuleSpec.packageName(): String = name.replace('-', '_')
 
@@ -380,8 +380,8 @@ private fun pluginId(
 private fun moduleBuildFileContent(
     module: ModuleSpec,
     useKotlinDsl: Boolean,
-): String {
-    return when (module.type) {
+): String =
+    when (module.type) {
         ModuleType.AndroidApp, ModuleType.AndroidLib -> {
             val androidPluginId =
                 if (module.type == ModuleType.AndroidApp) {
@@ -556,7 +556,6 @@ private fun moduleBuildFileContent(
             }
             """.trimIndent()
     }
-}
 
 private fun libsCatalogContent(catalog: LibsCatalog): String {
     val libraries = mutableListOf<String>()
@@ -590,11 +589,10 @@ private fun List<String>.toGroovyList(useKotlinDsl: Boolean = false): String =
         joinToString(prefix = "[", postfix = "]") { "'$it'" }
     }
 
-private fun String.removeBlankLines(): String {
-    return lines()
+private fun String.removeBlankLines(): String =
+    lines()
         .filter { line -> line.isNotBlank() }
         .joinToString("\n")
-}
 
 private fun androidSdkPath(): String? {
     val fromEnv = System.getenv("ANDROID_HOME") ?: System.getenv("ANDROID_SDK_ROOT")

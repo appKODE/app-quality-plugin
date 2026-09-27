@@ -19,7 +19,9 @@ import javax.inject.Inject
  */
 abstract class ExternalDependencyConfig
     @Inject
-    constructor(objectFactory: ObjectFactory) {
+    constructor(
+        objectFactory: ObjectFactory,
+    ) {
         /**
          * User-added dependency sources (add-only; all source kinds).
          * Constraints can be added via `from.addConstraint(...)`.
@@ -61,6 +63,7 @@ abstract class ExternalDependencyConfig
  * set like `kode`, so counting them here would silently defeat a "did you forget to add the
  * rules jar" check for any slot that has one.
  */
-internal fun ExternalDependencyConfig.hasNoUserAdditionsProvider(): Provider<Boolean> {
-    return from.dependencies.map { it.isEmpty() }
-}
+internal fun ExternalDependencyConfig.hasNoUserAdditionsProvider(): Provider<Boolean> =
+    from.dependencies.map {
+        it.isEmpty()
+    }

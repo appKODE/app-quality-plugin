@@ -13,7 +13,9 @@ import javax.inject.Inject
 
 abstract class DetektConfig
     @Inject
-    constructor(objectFactory: ObjectFactory) {
+    constructor(
+        objectFactory: ObjectFactory,
+    ) {
         @get:Nested
         val kotlin: PlatformDetektConfig =
             objectFactory.newInstance(PlatformDetektConfig::class.java)

@@ -199,7 +199,9 @@ class AggregateTasksTest {
         assertEquals(TaskOutcome.SUCCESS, result.task(":pipelineCheck")?.outcome)
         assertTrue(
             result.tasks.any { it.path.startsWith(":app:lint") },
-            "pipelineCheck must trigger AGP lint tasks once androidLint.enabled is set, got: ${result.tasks.map { it.path }}",
+            "pipelineCheck must trigger AGP lint tasks once androidLint.enabled is set, got: ${result.tasks.map {
+                it.path
+            }}",
         )
     }
 

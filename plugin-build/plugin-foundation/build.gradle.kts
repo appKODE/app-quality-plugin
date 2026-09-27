@@ -22,7 +22,10 @@ val generateDefaultToolVersions =
         destinationFile.set(layout.buildDirectory.file("generated/resources/default-tool-versions.properties"))
         listOf("ktlint-cli", "detekt-formatting", "detekt-compose-rules").forEach { alias ->
             val library = versionCatalog.findLibrary(alias).get().get()
-            property(alias, "${library.module.group}:${library.module.name}:${library.versionConstraint.requiredVersion}")
+            property(
+                alias,
+                "${library.module.group}:${library.module.name}:${library.versionConstraint.requiredVersion}",
+            )
         }
     }
 

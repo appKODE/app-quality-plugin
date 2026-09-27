@@ -8,7 +8,7 @@ import java.io.File
 
 private val IS_CI get() = System.getenv("CI") == "true"
 
-const val DEFAULT_GRADLE_VERSION = "9.4.1"
+const val DEFAULT_GRADLE_VERSION = "9.8.0"
 
 fun File.getFile(path: String): File {
     val file = File(this, path)
@@ -42,7 +42,8 @@ fun File.runTasks(
             }
         }
     val runner =
-        GradleRunner.create()
+        GradleRunner
+            .create()
             .withProjectDir(this)
             .withArguments(args)
             .withEnvironment(env)
@@ -62,17 +63,13 @@ fun File.runTask(
     task: String,
     arguments: List<String> = emptyList(),
     gradleVersion: String = DEFAULT_GRADLE_VERSION,
-): BuildResult {
-    return runTasks(task, arguments = arguments, gradleVersion = gradleVersion)
-}
+): BuildResult = runTasks(task, arguments = arguments, gradleVersion = gradleVersion)
 
 fun File.runTaskWithFail(
     task: String,
     arguments: List<String> = emptyList(),
     gradleVersion: String = DEFAULT_GRADLE_VERSION,
-): BuildResult {
-    return runTasks(task, arguments = arguments, gradleVersion = gradleVersion, expectFailure = true)
-}
+): BuildResult = runTasks(task, arguments = arguments, gradleVersion = gradleVersion, expectFailure = true)
 
 private fun prepareClasspath(agpClassPath: List<File>): List<File> {
     val pluginClasspath: List<File> = PluginUnderTestMetadataReading.readImplementationClasspath()
@@ -93,7 +90,8 @@ private fun prepareClasspath(agpClassPath: List<File>): List<File> {
  */
 fun resolveJars(vararg notations: String): List<File> {
     val project =
-        ProjectBuilder.builder()
+        ProjectBuilder
+            .builder()
             .withName("temp-resolver")
             .build()
 
@@ -103,12 +101,15 @@ fun resolveJars(vararg notations: String): List<File> {
     }
 
     val resolved =
-        project.buildscript.configurations.getByName("classpath").apply {
-            dependencies.clear()
-            notations.forEach { notation ->
-                dependencies.add(project.dependencies.create(notation))
+        project.buildscript.configurations
+            .getByName("classpath")
+            .apply {
+                dependencies.clear()
+                notations.forEach { notation ->
+                    dependencies.add(project.dependencies.create(notation))
+                }
             }
-        }.resolve()
+            .resolve()
 
     return resolved.toList()
 }

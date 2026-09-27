@@ -123,12 +123,11 @@ internal fun Project.registerDefaultConfigTasks(): DefaultConfigFiles {
     )
 }
 
-private fun readBundledResource(path: String): String {
-    return PluginResources::class.java.getResourceAsStream(path)
+private fun readBundledResource(path: String): String =
+    PluginResources::class.java.getResourceAsStream(path)
         ?.bufferedReader()
         ?.use { it.readText() }
         ?: throw GradleException("Default file ($path) not found in plugin resources")
-}
 
 private fun readBundledProperties(path: String): Properties {
     val stream =
@@ -137,8 +136,7 @@ private fun readBundledProperties(path: String): Properties {
     return stream.use { Properties().apply { load(it) } }
 }
 
-private fun readBundledResourceBytes(path: String): ByteArray {
-    return PluginResources::class.java.getResourceAsStream(path)
+private fun readBundledResourceBytes(path: String): ByteArray =
+    PluginResources::class.java.getResourceAsStream(path)
         ?.use { it.readBytes() }
         ?: throw GradleException("Default file ($path) not found in plugin resources")
-}

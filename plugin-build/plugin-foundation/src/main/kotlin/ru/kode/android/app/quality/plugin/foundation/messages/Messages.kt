@@ -10,8 +10,8 @@ private val VERSION_NUMBER_REGEX = Regex("""\d+(?:\.\d+)+""")
 /**
  * Error message shown when the plugin is applied to a non-Android application project.
  */
-fun mustBeUsedWithAndroidMessage(): String {
-    return """
+fun mustBeUsedWithAndroidMessage(): String =
+    """
         |
         |============================================================
         |                 PLUGIN CONFIGURATION ERROR   
@@ -30,8 +30,7 @@ fun mustBeUsedWithAndroidMessage(): String {
         |
         | NOTE: This plugin is not compatible with library projects.
         |============================================================
-        """.trimMargin()
-}
+    """.trimMargin()
 
 /**
  * Error message shown when the Android Gradle Plugin version is below the required minimum.
@@ -69,8 +68,8 @@ fun mustBeUsedWithVersionMessage(version: AndroidPluginVersion): String {
 fun missingDependencyFileMessage(
     file: File,
     slot: String,
-): String {
-    return """
+): String =
+    """
         |
         |============================================================
         |             MISSING DEPENDENCY FILE
@@ -91,8 +90,7 @@ fun missingDependencyFileMessage(
         |
         |  3. Remove the entry if it is not needed
         |============================================================
-        """.trimMargin()
-}
+    """.trimMargin()
 
 /**
  * Error message shown when a resolved detekt config activates the plugin's bundled `kode:`
@@ -101,8 +99,8 @@ fun missingDependencyFileMessage(
 fun missingKodeRuleSetDependencyMessage(
     platform: String,
     configFile: File,
-): String {
-    return """
+): String =
+    """
         |
         |============================================================
         |          MISSING DEPENDENCY FOR 'kode' RULE SET
@@ -122,14 +120,13 @@ fun missingKodeRuleSetDependencyMessage(
         |         }
         |     }
         |============================================================
-        """.trimMargin()
-}
+    """.trimMargin()
 
 /**
  * Error message shown when the editor configuration file is missing.
  */
-fun noEditorConfigFileMessage(editorConfig: File): String {
-    return """
+fun noEditorConfigFileMessage(editorConfig: File): String =
+    """
         |
         |============================================================
         |                MISSING CONFIGURATION FILE
@@ -148,5 +145,4 @@ fun noEditorConfigFileMessage(editorConfig: File): String {
         |         ktlint.projectConfig.set(rootProject.layout.projectDirectory.file("config/.editorconfig"))
         |     }
         |============================================================
-        """.trimMargin()
-}
+    """.trimMargin()

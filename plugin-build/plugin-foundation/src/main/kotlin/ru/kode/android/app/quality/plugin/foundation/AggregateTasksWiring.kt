@@ -12,8 +12,8 @@ import ru.kode.android.app.quality.plugin.foundation.task.GitHooksSetupTask
 import ru.kode.android.gradle.commons.logger.LoggerService
 import java.lang.management.ManagementFactory
 
-internal fun Project.configureGitHooksSetup(extension: AppQualityFoundationExtension): TaskProvider<GitHooksSetupTask> {
-    return tasks.register("gitHooksSetup", GitHooksSetupTask::class.java) { task ->
+internal fun Project.configureGitHooksSetup(extension: AppQualityFoundationExtension): TaskProvider<GitHooksSetupTask> =
+    tasks.register("gitHooksSetup", GitHooksSetupTask::class.java) { task ->
         task.hooksPath.set(extension.gitHooks.map { it.asFile.path })
         task.rootDir.set(rootProject.layout.projectDirectory)
         // Capture only the Provider, not `extension` itself — the extension also holds
@@ -22,7 +22,6 @@ internal fun Project.configureGitHooksSetup(extension: AppQualityFoundationExten
         val enabled = extension.gitHooksEnabled
         task.onlyIf("git hooks setup is enabled") { enabled.get() }
     }
-}
 
 internal fun configurePrintRequiredGradleJvmargs(project: Project) {
     project.tasks.register("printRequiredGradleJvmargs") { task ->
