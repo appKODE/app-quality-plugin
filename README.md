@@ -62,7 +62,7 @@ In root `build.gradle.kts`:
 
 ```kotlin
 plugins {
-    id("ru.kode.android.app-quality.foundation") version "2.0.0"
+    id("ru.kode.android.app-quality.foundation") version "2.0.3"
 }
 ```
 
