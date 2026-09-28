@@ -38,7 +38,7 @@ internal fun Project.stopExecutionIfNotSupported() {
  * Resolved Android Gradle Plugin versions used by the support check.
  */
 object AgpVersions {
-    val MIN_VERSION = AndroidPluginVersion(7, 4, 0)
+    val MIN_VERSION = AndroidPluginVersion(8, 7, 3)
 }
 
 /**

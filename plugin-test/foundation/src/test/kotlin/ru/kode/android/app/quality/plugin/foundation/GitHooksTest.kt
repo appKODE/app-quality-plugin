@@ -24,13 +24,12 @@ class GitHooksTest {
         projectDir = File(tempDir, "test-project")
     }
 
-    private fun hooksPathFromGitConfig(): String? {
-        return File(projectDir, ".git/config")
+    private fun hooksPathFromGitConfig(): String? =
+        File(projectDir, ".git/config")
             .readLines()
             .firstOrNull { it.trim().startsWith("hooksPath") }
             ?.substringAfter("=")
             ?.trim()
-    }
 
     @Test
     fun `custom gitHooks path is written to git config`() {

@@ -36,25 +36,23 @@ private val DEFAULT_KOTLIN_EXCLUDE_PATTERNS =
  * Builds the ktlint include-pattern list from [sources]: the bundled Kotlin globs (while
  * `useDefaults` is true) plus any user-added `include` patterns.
  */
-internal fun kotlinSourcePatterns(sources: SourcePatternsConfig): Provider<List<String>> {
-    return sources.useDefaults.flatMap { useDefaults ->
+internal fun kotlinSourcePatterns(sources: SourcePatternsConfig): Provider<List<String>> =
+    sources.useDefaults.flatMap { useDefaults ->
         sources.include.map { (if (useDefaults) DEFAULT_KOTLIN_INCLUDE_PATTERNS else emptyList()) + it }
     }
-}
 
 /**
  * Builds the ktlint ignore-pattern list from [sources]: the bundled ignore globs (while
  * `useDefaults` is true) plus any user-added `exclude` patterns — each prefixed with `!`
  * for the ktlint-CLI ignore syntax (the DSL itself takes bare patterns).
  */
-internal fun ignoredSourcePatterns(sources: SourcePatternsConfig): Provider<List<String>> {
-    return sources.useDefaults.flatMap { useDefaults ->
+internal fun ignoredSourcePatterns(sources: SourcePatternsConfig): Provider<List<String>> =
+    sources.useDefaults.flatMap { useDefaults ->
         sources.exclude.map { excluded ->
             ((if (useDefaults) DEFAULT_KOTLIN_EXCLUDE_PATTERNS else emptyList()) + excluded)
                 .map { "!$it" }
         }
     }
-}
 
 /**
  * Lazily resolves a library: a matching alias in the consumer's own `libs` version catalog if
@@ -66,8 +64,8 @@ internal fun ignoredSourcePatterns(sources: SourcePatternsConfig): Provider<List
 internal fun Project.catalogLibraryOrDefault(
     alias: String,
     fallbackCoordinate: String,
-): Provider<Dependency> {
-    return providers.provider {
+): Provider<Dependency> =
+    providers.provider {
         val fromCatalog: Provider<Dependency>? =
             extensions.findByType(VersionCatalogsExtension::class.java)
                 ?.find(VERSION_CATALOG_NAME)
@@ -77,7 +75,6 @@ internal fun Project.catalogLibraryOrDefault(
                 ?.map<Dependency> { it }
         fromCatalog ?: providers.provider { dependencies.create(fallbackCoordinate) }
     }.flatMap { it }
-}
 
 /**
  * Wires an [ExternalDependencyConfig] slot into a configuration — the ONE mechanism every
@@ -111,19 +108,6 @@ internal fun Project.wireDependencies(
             if (use) slot.defaults else providers.provider { emptyList<Dependency>() }
         },
     )
-    // File-based defaults (see ExternalDependencyConfig.defaultFiles) go through the same
-    // DependencyCollector mechanism as `from`, not the plain `defaults` ListProperty above —
-    // required for configuration-cache compatibility.
-    configuration.dependencies.addAllLater(
-        slot.useDefaults.flatMap { use ->
-            if (use) slot.defaultFiles.dependencies else providers.provider { emptySet<Dependency>() }
-        },
-    )
-    configuration.dependencyConstraints.addAllLater(
-        slot.useDefaults.flatMap { use ->
-            if (use) slot.defaultFiles.dependencyConstraints else providers.provider { emptySet() }
-        },
-    )
 }
 
 /**
@@ -155,6 +139,5 @@ private val KODE_RULE_SET_KEY_REGEX = Regex("(?m)^kode:")
  * (e.g. `RouteWiringMethodNaming`) — top-level YAML key, anchored so it doesn't false-positive
  * on unrelated `kode`-containing text elsewhere in the file (e.g. `ru.kode.*` package names).
  */
-internal fun activatesKodeRuleSet(configFile: File): Boolean {
-    return KODE_RULE_SET_KEY_REGEX.containsMatchIn(configFile.readText())
-}
+internal fun activatesKodeRuleSet(configFile: File): Boolean =
+    KODE_RULE_SET_KEY_REGEX.containsMatchIn(configFile.readText())

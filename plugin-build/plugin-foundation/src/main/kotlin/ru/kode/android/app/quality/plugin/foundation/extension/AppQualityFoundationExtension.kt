@@ -17,7 +17,9 @@ import javax.inject.Inject
 @Suppress("UnnecessaryAbstractClass")
 abstract class AppQualityFoundationExtension
     @Inject
-    constructor(objectFactory: ObjectFactory) {
+    constructor(
+        objectFactory: ObjectFactory,
+    ) {
         /**
          * Enables verbose logging for the build and publish plugins.
          *

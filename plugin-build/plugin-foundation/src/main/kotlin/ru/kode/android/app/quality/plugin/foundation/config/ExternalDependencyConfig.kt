@@ -19,7 +19,9 @@ import javax.inject.Inject
  */
 abstract class ExternalDependencyConfig
     @Inject
-    constructor(objectFactory: ObjectFactory) {
+    constructor(
+        objectFactory: ObjectFactory,
+    ) {
         /**
          * User-added dependency sources (add-only; all source kinds).
          * Constraints can be added via `from.addConstraint(...)`.
@@ -33,22 +35,10 @@ abstract class ExternalDependencyConfig
 
         // MUST stay a concrete internal val (NOT an abstract managed property): Kotlin mangles
         // internal member JVM names, which breaks the class generator's property recognition.
-        // Catalog/coordinate-based defaults only (ExternalModuleDependency-shaped values) —
-        // file-based defaults go through [defaultFiles] instead, see its doc for why.
+        // Catalog/coordinate-based defaults only (ExternalModuleDependency-shaped values): a raw
+        // FileCollectionDependency in a plain ListProperty fails configuration-cache serialization.
         internal val defaults: ListProperty<Dependency> =
             objectFactory.listProperty(Dependency::class.java)
-
-        /**
-         * Plugin-seeded file-based defaults (e.g. a bundled rules jar materialized from a
-         * plugin resource) — kept as a SEPARATE [DependencyCollector] from [defaults], not a
-         * `ListProperty<Dependency>` entry: a raw [org.gradle.api.artifacts.FileCollectionDependency]
-         * stored in a plain `ListProperty` fails Gradle's configuration-cache serialization
-         * ("cannot serialize DefaultFileCollectionDependency"), empirically confirmed — whereas
-         * `DependencyCollector.add(FileCollection)` (the real method backing [from]'s
-         * `from(files(...))` DSL sugar) has native, working config-cache support. Not part of
-         * the public DSL surface; the plugin seeds it via `.add(...)` directly, never the user.
-         */
-        abstract val defaultFiles: DependencyCollector
     }
 
 /**
@@ -59,8 +49,9 @@ abstract class ExternalDependencyConfig
  * distinction matters). Deliberately ignores the slot's baked-in plugin default
  * (`detekt-formatting`, `detekt-compose-rules`): those are known never to satisfy a custom rule
  * set like `kode`, so counting them here would silently defeat a "did you forget to add the
- * rules jar" check for any slot that has one.
+ * kode rules" check for any slot that has one.
  */
-internal fun ExternalDependencyConfig.hasNoUserAdditionsProvider(): Provider<Boolean> {
-    return from.dependencies.map { it.isEmpty() }
-}
+internal fun ExternalDependencyConfig.hasNoUserAdditionsProvider(): Provider<Boolean> =
+    from.dependencies.map {
+        it.isEmpty()
+    }

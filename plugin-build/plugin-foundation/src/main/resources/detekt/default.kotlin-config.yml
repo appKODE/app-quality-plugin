@@ -306,7 +306,7 @@ naming:
     ignoreAnnotated: [ 'Serializable' ]
   EnumNaming:
     active: true
-    enumEntryPattern: '[A-Z][a-zA-Z0-9]*'
+    enumEntryPattern: '[A-Z](?![A-Z]*$)[a-zA-Z0-9]*|[A-Z]'
 
   ForbiddenClassName:
     active: false

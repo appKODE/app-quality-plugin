@@ -10,8 +10,8 @@ private val VERSION_NUMBER_REGEX = Regex("""\d+(?:\.\d+)+""")
 /**
  * Error message shown when the plugin is applied to a non-Android application project.
  */
-fun mustBeUsedWithAndroidMessage(): String {
-    return """
+fun mustBeUsedWithAndroidMessage(): String =
+    """
         |
         |============================================================
         |                 PLUGIN CONFIGURATION ERROR   
@@ -30,8 +30,7 @@ fun mustBeUsedWithAndroidMessage(): String {
         |
         | NOTE: This plugin is not compatible with library projects.
         |============================================================
-        """.trimMargin()
-}
+    """.trimMargin()
 
 /**
  * Error message shown when the Android Gradle Plugin version is below the required minimum.
@@ -69,8 +68,8 @@ fun mustBeUsedWithVersionMessage(version: AndroidPluginVersion): String {
 fun missingDependencyFileMessage(
     file: File,
     slot: String,
-): String {
-    return """
+): String =
+    """
         |
         |============================================================
         |             MISSING DEPENDENCY FILE
@@ -91,8 +90,7 @@ fun missingDependencyFileMessage(
         |
         |  3. Remove the entry if it is not needed
         |============================================================
-        """.trimMargin()
-}
+    """.trimMargin()
 
 /**
  * Error message shown when a resolved detekt config activates the plugin's bundled `kode:`
@@ -101,8 +99,8 @@ fun missingDependencyFileMessage(
 fun missingKodeRuleSetDependencyMessage(
     platform: String,
     configFile: File,
-): String {
-    return """
+): String =
+    """
         |
         |============================================================
         |          MISSING DEPENDENCY FOR 'kode' RULE SET
@@ -117,19 +115,178 @@ fun missingKodeRuleSetDependencyMessage(
         |
         |     appQualityFoundation {
         |         detekt.$platform.rules {
-        |             from(files("libs/detekt-rules-1.4.0.jar")) // checked-in jar
-        |             // from(yourCatalog.detekt.rulesCompose)   // or a catalog alias
+        |             from("ru.kode:detekt-rules:2.0.0")
+        |             // from(libs.detekt.rules)  // or a catalog alias
         |         }
         |     }
         |============================================================
-        """.trimMargin()
-}
+    """.trimMargin()
+
+/**
+ * Warning shown when a KODE rules jar checked in for AQP 2.x is still present.
+ */
+fun legacyRulesJarMessage(jar: File): String =
+    """
+        |
+        |============================================================
+        |          LEGACY KODE RULES JAR FOUND
+        |============================================================
+        | Since 3.0.0 the plugin resolves the 'kode' rule set from
+        | Maven Central (ru.kode:detekt-rules) by default. This
+        | checked-in jar is no longer needed:
+        |
+        |   ${jar.absolutePath}
+        |
+        | FIX: delete the jar and any detekt.*.rules {
+        | from(files("libs/${jar.name}")) } entry pointing at it —
+        | otherwise the 'kode' rules run twice. To keep the jar
+        | instead, set detekt.android.rules.useDefaults = false.
+        |============================================================
+    """.trimMargin()
+
+/**
+ * Error message shown when `ru.kode.appQuality.detektEngine` holds an unsupported value.
+ */
+fun invalidDetektEngineMessage(value: String): String =
+    """
+        |
+        |============================================================
+        |              UNSUPPORTED DETEKT ENGINE
+        |============================================================
+        | Gradle property 'ru.kode.appQuality.detektEngine' is '$value'.
+        | Supported values: 1 (detekt 1.23, default) or 2 (detekt 2).
+        |
+        | FIX: in gradle.properties set
+        |
+        |     ru.kode.appQuality.detektEngine=1
+        |
+        | or remove the property to use the default.
+        |============================================================
+    """.trimMargin()
+
+/**
+ * Error message shown when engine 2 is selected but the `dev.detekt` Gradle plugin is not on the
+ * plugin classpath next to this plugin.
+ */
+fun detekt2PluginMissingMessage(version: String): String =
+    """
+        |
+        |============================================================
+        |           DETEKT 2 GRADLE PLUGIN NOT FOUND
+        |============================================================
+        | ru.kode.appQuality.detektEngine=2 needs the 'dev.detekt'
+        | Gradle plugin on the same classpath as this plugin.
+        |
+        | FIX: declare it where the app-quality plugin is declared
+        | (the root build script):
+        |
+        |     plugins {
+        |         id("dev.detekt") version "$version" apply false
+        |         id("ru.kode.android.app-quality.foundation") version "..."
+        |     }
+        |
+        | If the app-quality plugin comes from buildSrc or a
+        | convention-plugin build, add
+        | "dev.detekt:detekt-gradle-plugin:$version" to that
+        | build's dependencies instead.
+        |============================================================
+    """.trimMargin()
+
+/**
+ * Error message shown when engine 2 is selected but the `dev.detekt` Gradle plugin on the
+ * classpath is not the version this plugin is built against ([actual] is `null` when unknown).
+ */
+fun detekt2VersionMismatchMessage(
+    expected: String,
+    actual: String?,
+): String =
+    """
+        |
+        |============================================================
+        |           UNSUPPORTED DETEKT 2 GRADLE PLUGIN VERSION
+        |============================================================
+        | ru.kode.appQuality.detektEngine=2 is built against
+        | 'dev.detekt' $expected, but the classpath has ${actual ?: "an unknown version"}.
+        | detekt 2 is in alpha: its API changes between releases.
+        |
+        | FIX: declare exactly this version next to the plugin:
+        |
+        |     id("dev.detekt") version "$expected" apply false
+        |============================================================
+    """.trimMargin()
+
+/**
+ * Error message shown when engine 2 runs on a Kotlin Gradle plugin older than the one detekt 2
+ * needs: it references KGP's `KotlinJvmExtension`, which KGP 2.0 lacks.
+ */
+fun detekt2KotlinPluginTooOldMessage(projectPath: String): String =
+    """
+        |
+        |============================================================
+        |        KOTLIN GRADLE PLUGIN TOO OLD FOR DETEKT 2
+        |============================================================
+        | Project '$projectPath' applies a Kotlin Gradle plugin older
+        | than 2.1.21; ru.kode.appQuality.detektEngine=2 (detekt 2)
+        | needs KGP 2.1.21 or newer.
+        |
+        | FIX: update the Kotlin Gradle plugin to 2.1.21+, or use
+        | engine 1 (ru.kode.appQuality.detektEngine=1), which
+        | supports KGP 2.0.21+.
+        |============================================================
+    """.trimMargin()
+
+/**
+ * Error message shown when a module applies the detekt plugin of the engine that is not selected.
+ */
+fun bothDetektPluginsMessage(
+    projectPath: String,
+    enginePluginId: String,
+    otherPluginId: String,
+): String =
+    """
+        |
+        |============================================================
+        |              TWO DETEKT PLUGINS IN ONE BUILD
+        |============================================================
+        | Project '$projectPath' applies '$otherPluginId', but the
+        | app-quality plugin is configured for '$enginePluginId'.
+        |
+        | FIX — any one of:
+        |  1. Remove id("$otherPluginId") from '$projectPath'; the
+        |     app-quality plugin applies detekt itself
+        |  2. Switch engines in gradle.properties:
+        |     ru.kode.appQuality.detektEngine=${if (otherPluginId == "dev.detekt") 2 else 1}
+        |============================================================
+    """.trimMargin()
+
+/**
+ * Error message shown when an explicitly configured detekt config file does not exist.
+ */
+fun missingDetektConfigFileMessage(
+    configFile: File,
+    slot: String,
+): String =
+    """
+        |
+        |============================================================
+        |              MISSING DETEKT CONFIG FILE
+        |============================================================
+        | '$slot' points at a file that does not exist:
+        |
+        |   ${configFile.absolutePath}
+        |
+        | FIX — any one of:
+        |  1. Create the file at that path
+        |  2. Fix the path in the root build script
+        |  3. Remove the setting to use the bundled default config
+        |============================================================
+    """.trimMargin()
 
 /**
  * Error message shown when the editor configuration file is missing.
  */
-fun noEditorConfigFileMessage(editorConfig: File): String {
-    return """
+fun noEditorConfigFileMessage(editorConfig: File): String =
+    """
         |
         |============================================================
         |                MISSING CONFIGURATION FILE
@@ -148,5 +305,4 @@ fun noEditorConfigFileMessage(editorConfig: File): String {
         |         ktlint.projectConfig.set(rootProject.layout.projectDirectory.file("config/.editorconfig"))
         |     }
         |============================================================
-        """.trimMargin()
-}
+    """.trimMargin()

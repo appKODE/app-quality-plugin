@@ -72,7 +72,7 @@ class JetbrainsComposeConfigurationTest {
                                 PlatformDetektBlock(
                                     rules =
                                         DependencySlot(
-                                            notations = listOf("ru.kode:detekt-rules-compose:1.4.0"),
+                                            notations = listOf("ru.kode:detekt-rules-compose:2.1.0"),
                                             useDefaults = false,
                                         ),
                                 ),

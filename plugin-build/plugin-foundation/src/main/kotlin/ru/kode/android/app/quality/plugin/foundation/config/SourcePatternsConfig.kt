@@ -12,7 +12,9 @@ import javax.inject.Inject
  */
 abstract class SourcePatternsConfig
     @Inject
-    constructor(objectFactory: ObjectFactory) {
+    constructor(
+        objectFactory: ObjectFactory,
+    ) {
         /** User-added include patterns (add-only). */
         val include: ListProperty<String> =
             objectFactory.listProperty(String::class.java)

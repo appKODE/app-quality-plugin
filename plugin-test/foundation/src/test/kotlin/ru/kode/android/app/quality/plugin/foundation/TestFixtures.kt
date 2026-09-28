@@ -1,8 +1,10 @@
 package ru.kode.android.app.quality.plugin.foundation
 
+import ru.kode.android.app.quality.plugin.test.utils.CUSTOM_RULES_JAR_PATH
 import ru.kode.android.app.quality.plugin.test.utils.DependencySlot
 import ru.kode.android.app.quality.plugin.test.utils.DetektBlock
 import ru.kode.android.app.quality.plugin.test.utils.PlatformDetektBlock
+import ru.kode.android.app.quality.plugin.test.utils.resolveJars
 import java.io.File
 
 /**
@@ -154,31 +156,26 @@ object Configs {
 }
 
 /**
- * The standard test configuration for the KODE rules jar copied by `rulesJar` into
- * `<root>/libs/detekt-rules-1.4.0.jar` — since the plugin has no jar convention anymore,
- * every project whose android config activates `kode:` rules must configure it explicitly.
+ * Wires the jar that `rulesJar` copies to [CUSTOM_RULES_JAR_PATH] into `detekt.kotlin.rules` —
+ * the file-based custom-rules setup, for projects without an android module (where the
+ * `ru.kode:detekt-rules` default would already provide the `kode` rule set).
  */
 fun kodeRulesJarBlock(): DetektBlock =
     DetektBlock(
         kotlin =
             PlatformDetektBlock(
-                // Stacks ON TOP of the default detekt-formatting — the loot semantics.
-                rules = DependencySlot(files = listOf("libs/detekt-rules-1.4.0.jar")),
+                // Stacks ON TOP of the default detekt-formatting.
+                rules = DependencySlot(files = listOf(CUSTOM_RULES_JAR_PATH)),
             ),
     )
 
-/**
- * The custom KODE detekt rules jar shipped in the repo's example project; used to test
- * rulesPluginJar wiring. Resolved relative to the plugin-test/foundation working dir.
- */
-fun exampleRulesJar(): File? {
-    val candidates =
-        listOf(
-            File("../../example-project/libs/detekt-rules-1.4.0.jar"),
-            File(System.getProperty("user.dir"), "../../example-project/libs/detekt-rules-1.4.0.jar"),
-        )
-    return candidates.map { it.canonicalFile }.firstOrNull { it.isFile }
+/** The `kode` rule-set jar for [engine], resolved from Maven Central, for file-wiring tests. */
+fun exampleRulesJar(engine: Int = 1): File {
+    val artifact = if (engine == 1) "detekt-rules" else "detekt-rules-detekt2"
+    return resolveJars("ru.kode:$artifact:$KODE_RULES_VERSION").single { it.name.startsWith(artifact) }
 }
+
+const val KODE_RULES_VERSION = "2.0.0"
 
 /**
  * Pre-built-in-Kotlin toolchain used to test variant detekt tasks (detektDebug/detektRelease):

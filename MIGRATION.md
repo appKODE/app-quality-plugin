@@ -3,6 +3,32 @@
 Upgrade notes per release. Sections list breaking changes first, then behavior changes and
 new opt-in capabilities.
 
+## 3.0.0 (rules from Maven Central, detekt engine switch) — migrating from 2.x
+
+### Breaking: bundled `kode` rules jar removed
+
+`detekt.android.rules` now defaults to `ru.kode:detekt-rules:2.0.0` from Maven Central
+(`ru.kode:detekt-rules-detekt2:2.0.0` on engine 2), so `mavenCentral()` must be in the project
+repositories. The bundled jar, `generateDefaultDetektAndroidRulesJar` and `rules.defaultFiles` are
+gone. Delete `libs/detekt-rules-1.4.0.jar` and any `from(files(...))` entry pointing at it (the
+plugin warns when it finds one), or keep it with `detekt.android.rules.useDefaults.set(false)`.
+The "bundled default" notes in the 2.0.0 section below no longer apply.
+
+### New: detekt 2 engine
+
+Opt in with `ru.kode.appQuality.detektEngine=2` plus
+`id("dev.detekt") version "2.0.0-alpha.6" apply false` in the root build. Custom configs must drop
+the `build:` and `output-reports:` keys, use detekt 2 rule and property names and a list for
+`config.excludes`; engine 1 rule artifacts must leave `rules {}`. `dev.detekt` must be exactly
+2.0.0-alpha.6 and the Kotlin Gradle plugin 2.1.21+ (both checked with a clear failure).
+`detekt.xmlReportEnabled` enables detekt 2's `checkstyle` report (detekt 2 has no `xml` report):
+the same checkstyle XML at the same `build/reports/detekt/<task>.xml` path. Full list:
+[CHANGELOG.md](CHANGELOG.md) "Upgrading from 2.x".
+
+### Breaking: minimum AGP 8.7.3
+
+The minimum Android Gradle Plugin is now 8.7.3 (was 7.4.0), the oldest version tested.
+
 ## 2.0.0 (dependency wiring rework) — migrating from 1.0.8
 
 ### Breaking: `detekt.<platform>.rulesPluginJar` removed
@@ -24,10 +50,11 @@ appQualityFoundation {
 }
 ```
 
-### Breaking: implicit `<root>/libs/detekt-rules-1.4.0.jar` default removed — superseded below
+### Breaking: implicit `<root>/libs/detekt-rules-1.4.0.jar` default removed
 
-Previously the plugin silently picked up `<root>/libs/detekt-rules-1.4.0.jar` when it
-existed. That implicit, path-based pickup is gone. **However**, see "New: bundled default for
+Superseded in 3.0.0 (see "Breaking: bundled `kode` rules jar removed" above): the rules now
+come from Maven Central. Previously the plugin silently picked up
+`<root>/libs/detekt-rules-1.4.0.jar` when it existed. That implicit, path-based pickup is gone. **However**, see "New: bundled default for
 `detekt.android.rules`" below — for the common case (bundled `default.android-config.yml`,
 which is the only config that activates `kode:` today) the plugin now supplies an equivalent
 default again, just as an explicit, inspectable dependency slot instead of a silent file

@@ -2,18 +2,18 @@
 
 package ru.kode.android.app.quality.plugin.foundation
 
-import io.gitlab.arturbosch.detekt.Detekt
 import org.gradle.api.Project
 import org.gradle.api.Task
 import org.gradle.api.provider.Provider
 import org.gradle.api.tasks.TaskProvider
+import ru.kode.android.app.quality.plugin.foundation.engine.DetektEngine
 import ru.kode.android.app.quality.plugin.foundation.extension.AppQualityFoundationExtension
 import ru.kode.android.app.quality.plugin.foundation.task.GitHooksSetupTask
 import ru.kode.android.gradle.commons.logger.LoggerService
 import java.lang.management.ManagementFactory
 
-internal fun Project.configureGitHooksSetup(extension: AppQualityFoundationExtension): TaskProvider<GitHooksSetupTask> {
-    return tasks.register("gitHooksSetup", GitHooksSetupTask::class.java) { task ->
+internal fun Project.configureGitHooksSetup(extension: AppQualityFoundationExtension): TaskProvider<GitHooksSetupTask> =
+    tasks.register("gitHooksSetup", GitHooksSetupTask::class.java) { task ->
         task.hooksPath.set(extension.gitHooks.map { it.asFile.path })
         task.rootDir.set(rootProject.layout.projectDirectory)
         // Capture only the Provider, not `extension` itself — the extension also holds
@@ -22,7 +22,6 @@ internal fun Project.configureGitHooksSetup(extension: AppQualityFoundationExten
         val enabled = extension.gitHooksEnabled
         task.onlyIf("git hooks setup is enabled") { enabled.get() }
     }
-}
 
 internal fun configurePrintRequiredGradleJvmargs(project: Project) {
     project.tasks.register("printRequiredGradleJvmargs") { task ->
@@ -47,6 +46,7 @@ internal fun Project.configureAggregateTasks(
     gitHooksSetup: TaskProvider<GitHooksSetupTask>,
     ktlintTasks: KtlintTasks,
     loggerProvider: Provider<LoggerService>,
+    engine: DetektEngine,
 ): AggregateTasks {
     val ignoredBuildTypes = extension.detekt.ignoredBuildTypes
 
@@ -67,12 +67,12 @@ internal fun Project.configureAggregateTasks(
 
     subprojects { subproject ->
         val detektTasks =
-            subproject.tasks.withType(Detekt::class.java).matching { task ->
+            engine.detektTasks(subproject).matching { task ->
                 ignoredBuildTypes.get().none { ignored -> task.name.contains(ignored, ignoreCase = true) }
             }
         pipelineCheck.configure { it.dependsOn(detektTasks) }
         prePushCheck.configure { it.dependsOn(detektTasks) }
-        subproject.tasks.withType(Detekt::class.java).configureEach { task ->
+        engine.detektTasks(subproject).configureEach { task ->
             task.mustRunAfter(gitHooksSetup, ktlintTasks.check, ktlintTasks.format)
         }
     }

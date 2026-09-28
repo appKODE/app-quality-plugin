@@ -12,13 +12,25 @@ It configures Detekt for eligible modules, runs `ktlint` through CLI, and provid
 - Sets Git hooks path via `gitHooksSetup`
 - Supports configurable logging and Detekt JVM target
 - Provides bundled default config files when project-level files are missing
+- Runs detekt 1 (default) or detekt 2 (`ru.kode.appQuality.detektEngine=2`)
 
 ## Requirements
 
-- Java 17
-- Gradle 9.x (this repository uses wrapper `9.4.0`)
-- Version catalog named `libs`
-- If the plugin is applied directly to an Android module project: Android Gradle Plugin `7.4.0+` and `com.android.application`
+- Java 17+
+- `mavenCentral()` in the project repositories (the `kode` rule sets are resolved from it)
+- Version catalog named `libs` (optional, see below)
+
+### Compatibility
+
+Tested minimums and the latest combination (`./gradlew -p plugin-test :foundation:matrixTest`):
+
+| Engine | Gradle | AGP | Kotlin (KGP) | JDK |
+| --- | --- | --- | --- | --- |
+| 1 (detekt 1.23.8) — minimum | 8.14 | 8.7.3 | 2.0.21 | 17 |
+| 2 (detekt 2.0.0-alpha.6) — minimum | 8.14 | 8.7.3 | 2.1.21 | 17 |
+| both — latest tested | 9.8.0 | 9.4.1 | 2.4.20 | 17, 22 |
+
+AGP 9 needs Gradle 9 and KGP 2.2.10+. Kotlin-DSL and Groovy build scripts are both covered.
 
 ### Optional `libs.versions.toml` entries
 
@@ -28,16 +40,24 @@ missing (or the catalog itself missing) falls back to the plugin's bundled defau
 ```toml
 [versions]
 detekt = "1.23.8"
+detekt2 = "2.0.0-alpha.6"
 ktlintCli = "1.8.0"
-detektComposeRules = "1.4.0"
+kodeDetektRules = "2.0.0"
+kodeDetektComposeRules = "2.1.0"
 
 [libraries]
 ktlint-cli = { module = "com.pinterest.ktlint:ktlint-cli", version.ref = "ktlintCli" }
+# engine 1
 detekt-formatting = { module = "io.gitlab.arturbosch.detekt:detekt-formatting", version.ref = "detekt" }
-detekt-compose-rules = { module = "ru.kode:detekt-rules-compose", version.ref = "detektComposeRules" }
+detekt-rules = { module = "ru.kode:detekt-rules", version.ref = "kodeDetektRules" }
+detekt-compose-rules = { module = "ru.kode:detekt-rules-compose", version.ref = "kodeDetektComposeRules" }
+# engine 2
+detekt-rules-ktlint-wrapper = { module = "dev.detekt:detekt-rules-ktlint-wrapper", version.ref = "detekt2" }
+detekt-rules-detekt2 = { module = "ru.kode:detekt-rules-detekt2", version.ref = "kodeDetektRules" }
+detekt-rules-compose-detekt2 = { module = "ru.kode:detekt-rules-compose-detekt2", version.ref = "kodeDetektComposeRules" }
 ```
 
-`detekt-compose-rules` is required only for modules using Compose Detekt rules.
+Only the aliases of the selected engine are looked up.
 
 Catalog lookups are lazy: a missing alias fails the first task that needs it (with an
 explanatory message), not the plugin apply, so unrelated tasks keep working.
@@ -62,7 +82,7 @@ In root `build.gradle.kts`:
 
 ```kotlin
 plugins {
-    id("ru.kode.android.app-quality.foundation") version "2.0.0"
+    id("ru.kode.android.app-quality.foundation") version "3.0.0"
 }
 ```
 
@@ -83,6 +103,35 @@ plugins {
     id("ru.kode.android.app-quality.foundation") version "<local-version>"
 }
 ```
+
+## detekt engine
+
+The plugin runs detekt 1 (`io.gitlab.arturbosch.detekt` 1.23.8) by default. To run detekt 2,
+put its Gradle plugin on the classpath in the root build and select engine 2:
+
+```kotlin
+// root build.gradle.kts
+plugins {
+    id("dev.detekt") version "2.0.0-alpha.6" apply false
+    id("ru.kode.android.app-quality.foundation") version "3.0.0"
+}
+```
+
+```properties
+# gradle.properties
+ru.kode.appQuality.detektEngine=2
+```
+
+Both engines share the extension DSL, the tasks and the config discovery. Differences on engine 2:
+
+- detekt 2 rejects the `build:` config key and renames some rules (e.g. `UnusedImports` →
+  `UnusedImport`); the bundled Kotlin config has a detekt 2 flavour.
+- `UnusedPrivateProperty` and `UseDataClass` report only with `detekt.typeResolution` on.
+- The task's `basePath` is absolute, so a checkout at another path misses the build cache; with
+  no report enabled the task has no outputs and is not cached.
+- Custom rule sets must be built against `dev.detekt:detekt-api`.
+
+See [CHANGELOG.md](CHANGELOG.md) "Upgrading from 2.x".
 
 ## Quick Start
 
@@ -112,11 +161,9 @@ Pre-push formatting + static analysis:
   `androidLintCheck` (if `androidLint.enabled` is `true`)
 - `androidLintCheck`: runs Android Gradle Plugin lint checks; skipped unless `androidLint.enabled` is `true`
 - `printRequiredGradleJvmargs`: prints the current Gradle JVM input arguments
-- `generateDefaultDetektKotlinConfig` / `...AndroidConfig` / `...ComposeConfig` / `...AndroidRulesJar` /
-  `generateDefaultKtlintEditorconfig`: materialize bundled default configs and resources into
-  `<root>/build/app-quality/`; run automatically only when a default is actually used. The rules jar
-  (`generateDefaultDetektAndroidRulesJar`) contains the bundled KODE Android detekt ruleset and is placed
-  under `<root>/build/app-quality/detekt/rules/`
+- `generateDefaultDetektKotlinConfig` / `...AndroidConfig` / `...ComposeConfig` /
+  `generateDefaultKtlintEditorconfig`: materialize bundled default configs into
+  `<root>/build/app-quality/`; run automatically only when a default is actually used
 
 ## Configuration
 
@@ -153,6 +200,7 @@ appQualityFoundation {
             exclude.set(listOf("tmpGenerated"))
         }
         typeResolution.set(false)
+        buildUponDefaultConfig.set(false)
         // Only the filename is used — it's re-resolved per subproject, so this is safe to set
         // once here even when app-quality-plugin is applied at the root only.
         baseline.set(layout.projectDirectory.file("detekt-baseline.xml"))
@@ -162,7 +210,7 @@ appQualityFoundation {
         kotlin {
             projectConfig.set(layout.projectDirectory.file("detekt-kotlin-config.yml"))
             rules {
-                from(rootProject.layout.projectDirectory.file("libs/detekt-rules-1.4.0.jar"))
+                from("com.example:my-detekt-rules:1.0.0")
             }
         }
 
@@ -195,14 +243,15 @@ appQualityFoundation {
 | `detekt.sources.include` | per-platform Kotlin/Java source dirs (while `useDefaults` is `true`) |
 | `detekt.sources.exclude` | `[]` |
 | `detekt.typeResolution` | `false` |
+| `detekt.buildUponDefaultConfig` | `false` |
 | `detekt.baseline` | unset (no baseline); when set, resolved per-subproject by filename — safe to configure once regardless of where the plugin is applied |
-| `detekt.xmlReportEnabled` | `false` |
+| `detekt.xmlReportEnabled` | `false`; engine 2 has no `xml` report, so this enables detekt 2's `checkstyle` report (the same checkstyle XML, still `build/reports/detekt/<task>.xml`) |
 | `detekt.sarifReportEnabled` | `false` |
 | `androidLint.enabled` | `false` |
 | `ktlint.cli` | `libs.ktlint-cli`, falling back to the plugin's own baked-in `com.pinterest.ktlint:ktlint-cli` coordinate if no matching catalog alias exists (while `useDefaults` is `true`) |
-| `detekt.kotlin.rules` | `libs.detekt-formatting`, falling back to the plugin's own baked-in `io.gitlab.arturbosch.detekt:detekt-formatting` coordinate if no matching catalog alias exists (while `useDefaults` is `true`) |
-| `detekt.android.rules` | the plugin's bundled KODE Android rules jar (not published anywhere externally — see [MIGRATION.md](MIGRATION.md)) (while `useDefaults` is `true`) |
-| `detekt.compose.rules` | `libs.detekt-compose-rules`, falling back to the plugin's own baked-in `ru.kode:detekt-rules-compose` coordinate if no matching catalog alias exists (while `useDefaults` is `true`) |
+| `detekt.kotlin.rules` | engine 1: `libs.detekt-formatting`, else `io.gitlab.arturbosch.detekt:detekt-formatting:1.23.8`; engine 2: `libs.detekt-rules-ktlint-wrapper`, else `dev.detekt:detekt-rules-ktlint-wrapper:2.0.0-alpha.6` (while `useDefaults` is `true`) |
+| `detekt.android.rules` | engine 1: `libs.detekt-rules`, else `ru.kode:detekt-rules:2.0.0`; engine 2: `libs.detekt-rules-detekt2`, else `ru.kode:detekt-rules-detekt2:2.0.0` (while `useDefaults` is `true`) |
+| `detekt.compose.rules` | engine 1: `libs.detekt-compose-rules`, else `ru.kode:detekt-rules-compose:2.1.0`; engine 2: `libs.detekt-rules-compose-detekt2`, else `ru.kode:detekt-rules-compose-detekt2:2.1.0` (while `useDefaults` is `true`) |
 
 ### Configuring dependencies
 
@@ -212,11 +261,9 @@ version-catalog accessors, string coordinates (e.g. your own published rule sets
 files. Additions always stack ON TOP of the slot's default; disable the default with
 `useDefaults.set(false)`.
 
-For `ktlint.cli`/`detekt.kotlin.rules`/`detekt.compose.rules`, a matching alias in your own
-`libs` catalog (if present) always wins; the plugin's baked-in coordinate is only a fallback,
-so the plugin works with zero catalog setup too. `detekt.android.rules` has no catalog-alias
-option at all — its default is bundled directly in the plugin (the jar isn't published to any
-Maven repo). See [MIGRATION.md](MIGRATION.md) for upgrade notes.
+For every slot, a matching alias in your own `libs` catalog (if present) always wins; the
+plugin's baked-in coordinate is only a fallback, so the plugin works with zero catalog setup
+too. See [CHANGELOG.md](CHANGELOG.md) and [MIGRATION.md](MIGRATION.md) for upgrade notes.
 
 ```kotlin
 appQualityFoundation {
@@ -227,10 +274,10 @@ appQualityFoundation {
         useDefaults.set(false)                               // drop the `libs` catalog default
     }
     detekt.kotlin.rules {
-        from(files("libs/detekt-rules-1.4.0.jar"))           // stacks on detekt-formatting
+        from(files("tools/my-rules.jar"))                    // stacks on detekt-formatting
     }
-    detekt.compose.rules {
-        from("ru.kode:detekt-rules-compose:1.4.0")           // published custom rules
+    detekt.android.rules {
+        from("ru.kode:detekt-rules:2.0.0")                   // pin another published version
         useDefaults.set(false)                               // replace the default entirely
     }
 }
@@ -276,10 +323,8 @@ later is picked up correctly.
   - Module file lookup: `<module>/detekt-compose-config.yml`
   - Bundled default (generated): `<root>/build/app-quality/detekt/compose-config.yml`
 
-`detekt.kotlin.rules`, `detekt.compose.rules`, and `ktlint.cli` fall back to a baked-in
-coordinate default when no matching `libs` catalog alias exists (see Defaults above).
-`detekt.android.rules` has its own bundled-jar default, since it isn't published anywhere
-externally. A configured-but-missing file in any slot fails the build with an explanatory
+Every dependency slot falls back to a baked-in coordinate default when no matching `libs`
+catalog alias exists (see Defaults above). A configured-but-missing file in any slot fails the build with an explanatory
 message naming the slot (see "Configuring dependencies" above).
 
 ## Module Coverage
@@ -298,7 +343,10 @@ left untouched). Config layers merged per module:
 
 - Full checks: `./gradlew preMerge`
 - Plugin checks only: `./gradlew --project-dir plugin-build preMerge`
-- Test suite: `./gradlew --project-dir plugin-test test`
+- Test suite (PR tier): `./gradlew --project-dir plugin-test test`
+- Full compatibility matrix: `./gradlew --project-dir plugin-test :foundation:matrixTest`
+- Published-artifact smoke test: `./gradlew --project-dir plugin-build publishToMavenLocal`, then
+  `./gradlew --project-dir samples/consumer pipelineCheck [-Pru.kode.appQuality.detektEngine=2]`
 - Example app quality run: `./gradlew --project-dir example-project pipelineCheck`
 
 ## Publishing (Repository Maintainers)

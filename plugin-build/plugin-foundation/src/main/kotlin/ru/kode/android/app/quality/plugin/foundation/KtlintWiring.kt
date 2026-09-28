@@ -85,8 +85,8 @@ internal fun Project.configureKtlint(
         taskGroup: String,
         taskDescription: String,
         format: Boolean,
-    ): TaskProvider<JavaExec> {
-        return tasks.register(name, JavaExec::class.java) { task ->
+    ): TaskProvider<JavaExec> =
+        tasks.register(name, JavaExec::class.java) { task ->
             task.usesService(loggerServiceProvider)
 
             task.group = taskGroup
@@ -134,7 +134,6 @@ internal fun Project.configureKtlint(
                 },
             )
         }
-    }
 
     fun trackKotlinSourcesAsInputs(task: JavaExec) {
         task.inputs.files(

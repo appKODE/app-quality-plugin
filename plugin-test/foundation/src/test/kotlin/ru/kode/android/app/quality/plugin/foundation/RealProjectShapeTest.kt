@@ -3,7 +3,6 @@ package ru.kode.android.app.quality.plugin.foundation
 import org.gradle.testkit.runner.TaskOutcome
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
-import org.junit.jupiter.api.Assumptions.assumeTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
@@ -57,18 +56,11 @@ class RealProjectShapeTest {
             ),
         )
 
-    private fun lootShapedConfig() = QualityConfig(detekt = kodeRulesJarBlock())
-
     @Test
     fun `loot-shaped project passes pipelineCheck with compose layer end to end`() {
-        val rulesJar = exampleRulesJar()
-        assumeTrue(rulesJar != null, "example-project rules jar not found; skipping")
-
         projectDir.createQualityProject(
             modules = lootShapedModules(),
-            qualityConfig = lootShapedConfig(),
             rootEditorConfigContent = Configs.EDITORCONFIG_INDENT_2,
-            rulesJar = rulesJar,
         )
         projectDir.initGit()
 
@@ -87,14 +79,9 @@ class RealProjectShapeTest {
 
     @Test
     fun `loot-shaped project passes prePushCheck`() {
-        val rulesJar = exampleRulesJar()
-        assumeTrue(rulesJar != null, "example-project rules jar not found; skipping")
-
         projectDir.createQualityProject(
             modules = lootShapedModules(),
-            qualityConfig = lootShapedConfig(),
             rootEditorConfigContent = Configs.EDITORCONFIG_INDENT_2,
-            rulesJar = rulesJar,
         )
         projectDir.initGit()
 
@@ -106,9 +93,6 @@ class RealProjectShapeTest {
 
     @Test
     fun `module-local compose config overrides the bundled compose default`() {
-        val rulesJar = exampleRulesJar()
-        assumeTrue(rulesJar != null, "example-project rules jar not found; skipping")
-
         // The module config activates a compose rule against which the source violates:
         // Modifier parameter not named `modifier` -> ComposeFunctionName? Use MaxLineLength
         // inside the compose config instead: any rule works, the assertion is that the
@@ -136,8 +120,6 @@ class RealProjectShapeTest {
                         kotlinSources = mapOf("src/main/kotlin/ru/kode/test/Long.kt" to Sources.LONG_LINE_80),
                     ),
                 ),
-            qualityConfig = lootShapedConfig(),
-            rulesJar = rulesJar,
         )
 
         val result = projectDir.runTaskWithFail(":feature-ui:detekt")
@@ -151,9 +133,6 @@ class RealProjectShapeTest {
 
     @Test
     fun `loot-shaped project works with typed accessors from a custom catalog`() {
-        val rulesJar = exampleRulesJar()
-        assumeTrue(rulesJar != null, "example-project rules jar not found; skipping")
-
         projectDir.createQualityProject(
             modules = lootShapedModules(),
             qualityConfig =
@@ -169,7 +148,6 @@ class RealProjectShapeTest {
                                     rules =
                                         DependencySlot(
                                             refs = listOf("deps.detekt.formatting"),
-                                            files = listOf("libs/detekt-rules-1.4.0.jar"),
                                             useDefaults = false,
                                         ),
                                 ),
@@ -184,7 +162,6 @@ class RealProjectShapeTest {
                         ),
                 ),
             rootEditorConfigContent = Configs.EDITORCONFIG_INDENT_2,
-            rulesJar = rulesJar,
             libsCatalog = LibsCatalog(name = "deps"),
         )
         projectDir.initGit()

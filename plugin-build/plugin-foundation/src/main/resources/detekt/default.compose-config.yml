@@ -9,8 +9,6 @@ compose:
     active: true
   ModifierHeightWithText:
     active: true
-  ModifierParameterPosition:
-    active: true
   ModifierDefaultValue:
     active: true
   MissingModifierDefaultValue:
@@ -19,8 +17,6 @@ compose:
     active: true
   TopLevelComposableFunctions:
     active: false
-  ComposeFunctionName:
-    active: true
   ConditionCouldBeLifted:
     active: true
   ComposableFunctionName:

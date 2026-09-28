@@ -10,7 +10,9 @@ import javax.inject.Inject
 
 abstract class KtlintConfig
     @Inject
-    constructor(objectFactory: ObjectFactory) {
+    constructor(
+        objectFactory: ObjectFactory,
+    ) {
         val projectConfig: RegularFileProperty = objectFactory.fileProperty()
 
         /**

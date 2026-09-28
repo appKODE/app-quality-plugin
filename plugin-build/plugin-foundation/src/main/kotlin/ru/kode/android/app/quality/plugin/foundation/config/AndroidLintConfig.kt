@@ -11,7 +11,9 @@ import javax.inject.Inject
  */
 abstract class AndroidLintConfig
     @Inject
-    constructor(objectFactory: ObjectFactory) {
+    constructor(
+        objectFactory: ObjectFactory,
+    ) {
         val enabled: Property<Boolean> =
             objectFactory.property(Boolean::class.java)
                 .convention(false)
