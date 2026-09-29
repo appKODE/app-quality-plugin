@@ -6,7 +6,6 @@ import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
-import ru.kode.android.app.quality.plugin.test.utils.DetektBlock
 import ru.kode.android.app.quality.plugin.test.utils.ModuleSpec
 import ru.kode.android.app.quality.plugin.test.utils.ModuleType
 import ru.kode.android.app.quality.plugin.test.utils.QualityConfig
@@ -47,7 +46,7 @@ class AggregateTasksTest {
     }
 
     @Test
-    fun `pipelineCheck on android module runs variant detekt tasks except ignored build types`() {
+    fun `pipelineCheck on android module runs only the plain detekt task`() {
         projectDir.createQualityProject(
             modules =
                 listOf(
@@ -64,35 +63,25 @@ class AggregateTasksTest {
 
         assertEquals(TaskOutcome.SUCCESS, result.task(":pipelineCheck")?.outcome)
         val detektTasks = result.tasks.map { it.path }.filter { it.startsWith(":app:detekt") }
-        assertTrue(detektTasks.isNotEmpty(), "pipelineCheck must trigger detekt tasks of the app module")
-        assertTrue(
-            detektTasks.none { it.contains("release", ignoreCase = true) },
-            "release detekt tasks must be excluded by default ignoredBuildTypes, got: $detektTasks",
-        )
+        assertEquals(listOf(":app:detekt"), detektTasks)
     }
 
-    // Variant detekt tasks (detektDebug/detektRelease) only exist with the classic
-    // org.jetbrains.kotlin.android setup: detekt 1.x does not support AGP 9 built-in Kotlin
-    // (https://github.com/detekt/detekt/issues/8320 — fixed only in detekt 2.0.0-alpha.3+,
-    // which moved to dev.detekt coordinates). So this scenario runs on an injected AGP 8.x
-    // with an older Gradle, the same trick build-publish uses for AGP/Gradle matrices.
+    // With the classic org.jetbrains.kotlin.android setup detekt registers type-resolved variant
+    // tasks (detektDebug, detektRelease) next to the plain one; with type resolution off they
+    // must stay out of pipelineCheck. Runs on an injected AGP 8.x with an older Gradle, the same
+    // trick build-publish uses for AGP/Gradle matrices.
     @Test
-    fun `custom ignoredBuildTypes excludes matching variant detekt tasks with legacy AGP`() {
+    fun `pipelineCheck skips variant detekt tasks with legacy AGP`() {
         projectDir.createQualityProject(
             modules =
                 listOf(
                     ModuleSpec(
                         name = "app",
                         type = ModuleType.AndroidApp,
-                        buildTypes = listOf("internal", "demo"),
                         kotlinSources = mapOf("src/main/kotlin/ru/kode/test/Main.kt" to Sources.CLEAN_TWO_SPACE),
                         compileSdk = 35,
                         applyKotlinAndroidPlugin = true,
                     ),
-                ),
-            qualityConfig =
-                QualityConfig(
-                    detekt = DetektBlock(ignoredBuildTypes = listOf("debug")),
                 ),
         )
         projectDir.initGit()
@@ -106,22 +95,11 @@ class AggregateTasksTest {
 
         assertEquals(TaskOutcome.SUCCESS, result.task(":pipelineCheck")?.outcome)
         val detektTasks = result.tasks.map { it.path }.filter { it.startsWith(":app:detekt") }
+        assertEquals(listOf(":app:detekt"), detektTasks)
         assertTrue(
-            detektTasks.any { it != ":app:detekt" },
-            "expected variant detekt tasks with the kotlin-android plugin, got: $detektTasks",
+            result.tasks.none { it.path.startsWith(":app:compile") },
+            "nothing must compile with type resolution off, got: ${result.tasks.map { it.path }}",
         )
-        assertTrue(
-            detektTasks.none { it.contains("debug", ignoreCase = true) },
-            "debug detekt tasks must be excluded by custom ignoredBuildTypes, got: $detektTasks",
-        )
-        // Custom ignoredBuildTypes REPLACES the default list ([release, internal, external,
-        // demo]) — build types no longer ignored get variant tasks again.
-        listOf("release", "internal", "demo").forEach { buildType ->
-            assertTrue(
-                detektTasks.any { it.contains(buildType, ignoreCase = true) },
-                "$buildType detekt tasks must run when only debug is ignored, got: $detektTasks",
-            )
-        }
     }
 
     @Test

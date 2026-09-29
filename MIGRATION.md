@@ -3,6 +3,19 @@
 Upgrade notes per release. Sections list breaking changes first, then behavior changes and
 new opt-in capabilities.
 
+## 3.1.0 (type resolution fix) — migrating from 3.0.x
+
+### Behavior change: `detekt.typeResolution` decides which detekt tasks run
+
+With `typeResolution` off, `pipelineCheck`/`prePushCheck` run only the plain `detekt` task per
+module. Engine 2, and engine 1 with AGP 8 + kotlin-android, no longer run every variant task on
+top of it, so type-resolution-only findings disappear: set `detekt.typeResolution.set(true)` to
+keep them. With it on, detekt's own type-resolved tasks run for one variant (see README "Type
+resolution"); expect new findings and report files named after the task (`debug.xml`,
+`main.xml`, ...), and refresh baselines. An Android module whose build types are all in
+`detekt.ignoredBuildTypes` now fails with type resolution on. Details:
+[CHANGELOG.md](CHANGELOG.md) "Upgrading from 3.0.x".
+
 ## 3.0.0 (rules from Maven Central, detekt engine switch) — migrating from 2.x
 
 ### Breaking: bundled `kode` rules jar removed

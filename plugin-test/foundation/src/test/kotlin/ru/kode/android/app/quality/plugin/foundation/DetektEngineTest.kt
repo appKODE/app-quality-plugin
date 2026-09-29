@@ -109,10 +109,10 @@ class DetektEngineTest {
 
         val withTypes = projectDir(engine, "typed")
         create(withTypes, typeResolution = true)
-        withTypes.runTasks(":t:detekt", expectFailure = true)
+        withTypes.runTasks(":t:detektMain", expectFailure = true)
         assertEquals(
             setOf("BlockingSqlDelightCall", "MissingTypeDeclaration"),
-            withTypes.reportedRuleIds("t", "detekt"),
+            withTypes.reportedRuleIds("t", "main"),
         )
     }
 

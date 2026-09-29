@@ -422,31 +422,6 @@ class DetektConfigurationTest {
     }
 
     @Test
-    fun `enabling typeResolution invalidates the detekt task's up-to-date state`() {
-        val module =
-            ModuleSpec(
-                name = "a",
-                type = ModuleType.KotlinJvm,
-                kotlinSources = mapOf("src/main/kotlin/ru/kode/test/Main.kt" to Sources.CLEAN_TWO_SPACE),
-            )
-        projectDir.createQualityProject(modules = listOf(module))
-        val first = projectDir.runTask(":a:detekt")
-        assertEquals(TaskOutcome.SUCCESS, first.task(":a:detekt")?.outcome)
-
-        projectDir.createQualityProject(
-            modules = listOf(module),
-            qualityConfig = QualityConfig(detekt = DetektBlock(typeResolution = true)),
-        )
-        val second = projectDir.runTask(":a:detekt")
-
-        assertTrue(
-            second.task(":a:detekt")?.outcome != TaskOutcome.UP_TO_DATE,
-            "enabling typeResolution must wire the compile task's classpath onto detekt and invalidate " +
-                "its cached result, got ${second.task(":a:detekt")?.outcome}",
-        )
-    }
-
-    @Test
     fun `typeResolution false misses a violation that requires resolved types`() {
         projectDir.createQualityProject(
             modules =
@@ -482,9 +457,9 @@ class DetektConfigurationTest {
             qualityConfig = QualityConfig(detekt = DetektBlock(typeResolution = true)),
         )
 
-        val result = projectDir.runTaskWithFail(":a:detekt")
+        val result = projectDir.runTaskWithFail(":a:detektMain")
 
-        assertEquals(TaskOutcome.FAILED, result.task(":a:detekt")?.outcome)
+        assertEquals(TaskOutcome.FAILED, result.task(":a:detektMain")?.outcome)
         assertTrue(
             result.output.contains("UnnecessarySafeCall"),
             "expected UnnecessarySafeCall to fire once type resolution is enabled, got: ${result.output}",

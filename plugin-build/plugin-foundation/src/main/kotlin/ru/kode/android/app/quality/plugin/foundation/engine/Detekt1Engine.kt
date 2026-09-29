@@ -4,14 +4,21 @@ import io.gitlab.arturbosch.detekt.Detekt
 import io.gitlab.arturbosch.detekt.DetektCreateBaselineTask
 import io.gitlab.arturbosch.detekt.DetektPlugin
 import io.gitlab.arturbosch.detekt.extensions.DetektExtension
+import org.gradle.api.GradleException
 import org.gradle.api.Project
 import org.gradle.api.Task
 import org.gradle.api.file.RegularFile
 import org.gradle.api.provider.Provider
 import org.gradle.api.tasks.TaskCollection
+import org.jetbrains.kotlin.gradle.dsl.KotlinAndroidExtension
+import org.jetbrains.kotlin.gradle.tasks.KotlinCompileTool
+import ru.kode.android.app.quality.plugin.foundation.ANDROID_BASE_PLUGIN_ID
+import ru.kode.android.app.quality.plugin.foundation.KOTLIN_MULTIPLATFORM_PLUGIN_ID
 import ru.kode.android.app.quality.plugin.foundation.configureDetektSources
+import ru.kode.android.app.quality.plugin.foundation.excludeGeneratedSources
 import ru.kode.android.app.quality.plugin.foundation.extension.AppQualityFoundationExtension
-import ru.kode.android.app.quality.plugin.foundation.typeResolutionLibraries
+import ru.kode.android.app.quality.plugin.foundation.messages.typeResolutionNothingToAnalyseMessage
+import ru.kode.android.app.quality.plugin.foundation.recordVariants
 import ru.kode.android.gradle.commons.logger.LoggerService
 
 /** detekt 1.23 (`io.gitlab.arturbosch.detekt`), bundled with the plugin. */
@@ -59,9 +66,7 @@ internal object Detekt1Engine : DetektEngine {
         project.tasks.withType(Detekt::class.java).configureEach { task ->
             task.usesService(loggerProvider)
             task.debug = extension.verboseLogging.get()
-            task.jvmTarget = extension.jvmTarget.get().target
-            project.typeResolutionLibraries(task.name, detektConfig)?.let { task.classpath.setFrom(it) }
-            project.configureDetektSources(task, detektConfig)
+            excludeGeneratedSources(task)
             task.reports {
                 it.xml.required.set(detektConfig.xmlReportEnabled)
                 it.html.required.set(false)
@@ -69,10 +74,70 @@ internal object Detekt1Engine : DetektEngine {
                 it.sarif.required.set(detektConfig.sarifReportEnabled)
             }
         }
+        // Detekt's own type-resolved tasks keep their compilation's sources and jvmTarget.
+        project.tasks.named("detekt", Detekt::class.java).configure { task ->
+            task.jvmTarget = extension.jvmTarget.get().target
+            project.configureDetektSources(task, detektConfig)
+        }
+        // Detekt 1.23 has no type-resolved tasks on AGP 9 built-in Kotlin, so the plain task
+        // gets the selected variant's classpath (main, unit test, androidTest). Delete with engine 1.
+        project.pluginManager.withPlugin(ANDROID_BASE_PLUGIN_ID) {
+            val variants = mutableMapOf<String, String>()
+            project.recordVariants(variants)
+            project.tasks.named("detekt", Detekt::class.java).configure { task ->
+                if (!detektConfig.typeResolution.get() || !project.hasBuiltInKotlin()) return@configure
+                val ignoredBuildTypes = detektConfig.ignoredBuildTypes.get()
+                val variant = selectVariant(variants, ignoredBuildTypes)
+                val kotlin = project.extensions.findByType(KotlinAndroidExtension::class.java)
+                val compilations =
+                    variant?.let { listOf(it, "${it}UnitTest", "${it}AndroidTest") }.orEmpty()
+                        .mapNotNull { kotlin?.target?.compilations?.findByName(it) }
+                if (compilations.isEmpty()) {
+                    // Fail on run, not on configuration, so `./gradlew tasks` still works.
+                    val message =
+                        typeResolutionNothingToAnalyseMessage(project.path, variants.toMap(), ignoredBuildTypes)
+                    task.doFirst { throw GradleException(message) }
+                    return@configure
+                }
+                compilations.forEach { compilation ->
+                    task.classpath.from(
+                        compilation.output.classesDirs,
+                        compilation.compileTaskProvider.map { (it as KotlinCompileTool).libraries },
+                    )
+                }
+            }
+        }
     }
 
     override fun detektTasks(project: Project): TaskCollection<out Task> = project.tasks.withType(Detekt::class.java)
 }
+
+/**
+ * The variant analysed with type resolution: among [variants] (name to build type) whose build
+ * type is not ignored, a `debug` one first, then the alphabetically first name. One variant is
+ * enough: `src/main` is the same in all of them.
+ */
+private fun selectVariant(
+    variants: Map<String, String>,
+    ignoredBuildTypes: List<String>,
+): String? {
+    val candidates =
+        variants
+            .filterValues { it !in ignoredBuildTypes }
+            .toSortedMap()
+    val debug = candidates.entries.firstOrNull { it.value == "debug" }
+    return debug?.key ?: candidates.keys.firstOrNull()
+}
+
+/** An Android module compiled by AGP 9 built-in Kotlin: detekt 1 registers no variant tasks for it. */
+internal fun Project.hasBuiltInKotlin(): Boolean =
+    plugins.hasPlugin(ANDROID_BASE_PLUGIN_ID) &&
+        !plugins.hasPlugin("org.jetbrains.kotlin.android") &&
+        !plugins.hasPlugin(KOTLIN_MULTIPLATFORM_PLUGIN_ID) &&
+        hasKotlin()
+
+/** The module compiles Kotlin: KGP and AGP 9 built-in Kotlin both register the `kotlin` extension. */
+internal fun Project.hasKotlin(): Boolean = extensions.findByName("kotlin") != null
 
 /**
  * `extension` lives on the root project, and detekt is configured while a SUBPROJECT's plugins

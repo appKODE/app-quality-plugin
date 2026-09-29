@@ -13,7 +13,7 @@ import org.gradle.api.tasks.TaskCollection
 import ru.kode.android.app.quality.plugin.foundation.configureDetektSources
 import ru.kode.android.app.quality.plugin.foundation.extension.AppQualityFoundationExtension
 import ru.kode.android.app.quality.plugin.foundation.messages.detekt2KotlinPluginTooOldMessage
-import ru.kode.android.app.quality.plugin.foundation.typeResolutionLibraries
+import ru.kode.android.app.quality.plugin.foundation.excludeGeneratedSources
 import ru.kode.android.gradle.commons.logger.LoggerService
 
 /**
@@ -72,9 +72,7 @@ internal object Detekt2Engine : DetektEngine {
         project.tasks.withType(Detekt::class.java).configureEach { task ->
             task.usesService(loggerProvider)
             task.debug.set(extension.verboseLogging)
-            task.jvmTarget.set(extension.jvmTarget.map { it.target })
-            project.typeResolutionLibraries(task.name, detektConfig)?.let { task.classpath.setFrom(it) }
-            project.configureDetektSources(task, detektConfig)
+            excludeGeneratedSources(task)
             task.reports {
                 // detekt 2 has no xml report; checkstyle is the same format under its real name.
                 it.checkstyle.required.set(detektConfig.xmlReportEnabled)
@@ -82,6 +80,11 @@ internal object Detekt2Engine : DetektEngine {
                 it.markdown.required.set(false)
                 it.sarif.required.set(detektConfig.sarifReportEnabled)
             }
+        }
+        // Detekt's own type-resolved tasks keep their compilation's sources and jvmTarget.
+        project.tasks.named("detekt", Detekt::class.java).configure { task ->
+            task.jvmTarget.set(extension.jvmTarget.map { it.target })
+            project.configureDetektSources(task, detektConfig)
         }
     }
 
