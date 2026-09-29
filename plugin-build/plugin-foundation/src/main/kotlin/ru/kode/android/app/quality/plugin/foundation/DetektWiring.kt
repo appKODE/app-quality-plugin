@@ -2,11 +2,9 @@ package ru.kode.android.app.quality.plugin.foundation
 
 import org.gradle.api.GradleException
 import org.gradle.api.Project
-import org.gradle.api.file.FileCollection
 import org.gradle.api.file.RegularFile
 import org.gradle.api.provider.Provider
 import org.gradle.api.tasks.SourceTask
-import org.jetbrains.kotlin.gradle.tasks.KotlinJvmCompile
 import ru.kode.android.app.quality.plugin.foundation.config.DetektConfig
 import ru.kode.android.app.quality.plugin.foundation.config.PlatformDetektConfig
 import ru.kode.android.app.quality.plugin.foundation.config.hasNoUserAdditionsProvider
@@ -223,9 +221,9 @@ private fun noKodeRuleSetJarWiredAnywhereProvider(
 }
 
 /**
- * Engine-agnostic part of detekt task tuning. Runs inside `configureEach`, which fires at
- * task-graph time — after the consumer's extension block — so extension reads observe the
- * configured values.
+ * The plain `detekt` task's sources: the whole module tree filtered by `detekt.sources`. Runs
+ * when the task is realized, at task-graph time — after the consumer's extension block — so
+ * extension reads observe the configured values.
  */
 internal fun Project.configureDetektSources(
     task: SourceTask,
@@ -249,7 +247,10 @@ internal fun Project.configureDetektSources(
                 tree.exclude(excludePatterns)
             }
         }
+}
 
+/** Drops generated sources from any detekt task, whatever its `source` ends up being. */
+internal fun excludeGeneratedSources(task: SourceTask) {
     // Defense-in-depth: AGP/KMP Android-target variant tasks (e.g. detektAndroidDebug) have
     // their `source` reassigned later by detekt-gradle-plugin's own variant-registration
     // callback, from the AGP variant's sourceSets — which already treats the KSP output dir
@@ -260,19 +261,4 @@ internal fun Project.configureDetektSources(
     // up being at execution time, and matches on the absolute file path instead.
     val generatedPathMarker = "${File.separator}build${File.separator}generated${File.separator}"
     task.exclude { fileTreeElement -> fileTreeElement.file.path.contains(generatedPathMarker) }
-}
-
-/**
- * With `detekt.typeResolution` on, the compile classpath of the Kotlin compile task matching
- * the detekt task's variant; `null` when off or no such compile task exists.
- */
-internal fun Project.typeResolutionLibraries(
-    taskName: String,
-    detektConfig: DetektConfig,
-): FileCollection? {
-    if (!detektConfig.typeResolution.get()) return null
-    val variantName = taskName.removePrefix("detekt")
-    return tasks.withType(KotlinJvmCompile::class.java)
-        .find { it.name.contains(variantName, ignoreCase = true) }
-        ?.libraries
 }

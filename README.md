@@ -43,7 +43,7 @@ detekt = "1.23.8"
 detekt2 = "2.0.0-alpha.6"
 ktlintCli = "1.8.0"
 kodeDetektRules = "2.0.0"
-kodeDetektComposeRules = "2.1.0"
+kodeDetektComposeRules = "2.1.1"
 
 [libraries]
 ktlint-cli = { module = "com.pinterest.ktlint:ktlint-cli", version.ref = "ktlintCli" }
@@ -82,7 +82,7 @@ In root `build.gradle.kts`:
 
 ```kotlin
 plugins {
-    id("ru.kode.android.app-quality.foundation") version "3.0.0"
+    id("ru.kode.android.app-quality.foundation") version "3.1.0"
 }
 ```
 
@@ -113,7 +113,7 @@ put its Gradle plugin on the classpath in the root build and select engine 2:
 // root build.gradle.kts
 plugins {
     id("dev.detekt") version "2.0.0-alpha.6" apply false
-    id("ru.kode.android.app-quality.foundation") version "3.0.0"
+    id("ru.kode.android.app-quality.foundation") version "3.1.0"
 }
 ```
 
@@ -127,11 +127,38 @@ Both engines share the extension DSL, the tasks and the config discovery. Differ
 - detekt 2 rejects the `build:` config key and renames some rules (e.g. `UnusedImports` →
   `UnusedImport`); the bundled Kotlin config has a detekt 2 flavour.
 - `UnusedPrivateProperty` and `UseDataClass` report only with `detekt.typeResolution` on.
+- Engine 1 cannot read class metadata of project dependencies compiled with a Kotlin language
+  version newer than 2.1, so type resolution misses their types; engine 2 reads them.
 - The task's `basePath` is absolute, so a checkout at another path misses the build cache; with
   no report enabled the task has no outputs and is not cached.
 - Custom rule sets must be built against `dev.detekt:detekt-api`.
 
 See [CHANGELOG.md](CHANGELOG.md) "Upgrading from 2.x".
+
+### Type resolution
+
+`detekt.typeResolution` (default `false`) decides which detekt tasks `pipelineCheck` and
+`prePushCheck` run:
+
+| module | off | on |
+|---|---|---|
+| JVM (`kotlin.jvm`), Android on engine 2 or AGP 8 + kotlin-android | `detekt` | `detektMain`, `detektTest` |
+| Android, engine 1 on AGP 9 built-in Kotlin | `detekt` | `detekt`, with variant `V`'s classpath |
+| Kotlin Multiplatform | `detekt` | `detekt` without type resolution, plus a warning |
+| Android without Kotlin | `detekt` | `detekt` without type resolution |
+
+- Off: nothing is compiled.
+- On: the module and its dependencies compile first. On Android, detekt's `detektMain` and
+  `detektTest` cover every variant whose build type is not in `detekt.ignoredBuildTypes`, with
+  its unit and android tests; a flavored app analyses each flavor, and `src/main` findings repeat
+  per variant. Build types match `detekt.ignoredBuildTypes` exactly (case-sensitive); with every
+  build type ignored, the build fails.
+- `V` (engine 1 on AGP 9 built-in Kotlin only) is the first variant whose build type is not in
+  `detekt.ignoredBuildTypes`, preferring `debug`.
+- Running `./gradlew :module:detekt` by hand is always without type resolution, except for engine 1
+  on AGP 9 built-in Kotlin.
+- `detekt.sources` applies only to the plain `detekt` task. detekt's own tasks analyse their
+  compilation's source dirs; exclude generated code with rule-set `excludes:` patterns in the detekt config.
 
 ## Quick Start
 
@@ -199,7 +226,7 @@ appQualityFoundation {
             include.set(listOf("src/custom/kotlin"))
             exclude.set(listOf("tmpGenerated"))
         }
-        typeResolution.set(false)
+        typeResolution.set(false) // true: compile and run detekt's type-resolved tasks, see "Type resolution"
         buildUponDefaultConfig.set(false)
         // Only the filename is used — it's re-resolved per subproject, so this is safe to set
         // once here even when app-quality-plugin is applied at the root only.
@@ -239,10 +266,10 @@ appQualityFoundation {
 | `gitHooksEnabled` | `true` |
 | `ktlint.sources.include` | `["**/src/*/java/**/*.kt", "**/src/*/kotlin/**/*.kt"]` (while `useDefaults` is `true`) |
 | `ktlint.sources.exclude` | `["**/build/**", "**/generated/**", "**/templates/**", "**/src/test/**", "**/src/androidTest/**", "**/src/commonTest/**", "templates/**", "**/schema/**/*.kt"]` (while `useDefaults` is `true`) |
-| `detekt.ignoredBuildTypes` | `["release", "internal", "external", "demo"]` |
+| `detekt.ignoredBuildTypes` | `["release", "internal", "external", "demo"]` (build types skipped by type resolution) |
 | `detekt.sources.include` | per-platform Kotlin/Java source dirs (while `useDefaults` is `true`) |
 | `detekt.sources.exclude` | `[]` |
-| `detekt.typeResolution` | `false` |
+| `detekt.typeResolution` | `false` (see [Type resolution](#type-resolution)) |
 | `detekt.buildUponDefaultConfig` | `false` |
 | `detekt.baseline` | unset (no baseline); when set, resolved per-subproject by filename — safe to configure once regardless of where the plugin is applied |
 | `detekt.xmlReportEnabled` | `false`; engine 2 has no `xml` report, so this enables detekt 2's `checkstyle` report (the same checkstyle XML, still `build/reports/detekt/<task>.xml`) |
@@ -251,7 +278,7 @@ appQualityFoundation {
 | `ktlint.cli` | `libs.ktlint-cli`, falling back to the plugin's own baked-in `com.pinterest.ktlint:ktlint-cli` coordinate if no matching catalog alias exists (while `useDefaults` is `true`) |
 | `detekt.kotlin.rules` | engine 1: `libs.detekt-formatting`, else `io.gitlab.arturbosch.detekt:detekt-formatting:1.23.8`; engine 2: `libs.detekt-rules-ktlint-wrapper`, else `dev.detekt:detekt-rules-ktlint-wrapper:2.0.0-alpha.6` (while `useDefaults` is `true`) |
 | `detekt.android.rules` | engine 1: `libs.detekt-rules`, else `ru.kode:detekt-rules:2.0.0`; engine 2: `libs.detekt-rules-detekt2`, else `ru.kode:detekt-rules-detekt2:2.0.0` (while `useDefaults` is `true`) |
-| `detekt.compose.rules` | engine 1: `libs.detekt-compose-rules`, else `ru.kode:detekt-rules-compose:2.1.0`; engine 2: `libs.detekt-rules-compose-detekt2`, else `ru.kode:detekt-rules-compose-detekt2:2.1.0` (while `useDefaults` is `true`) |
+| `detekt.compose.rules` | engine 1: `libs.detekt-compose-rules`, else `ru.kode:detekt-rules-compose:2.1.1`; engine 2: `libs.detekt-rules-compose-detekt2`, else `ru.kode:detekt-rules-compose-detekt2:2.1.1` (while `useDefaults` is `true`) |
 
 ### Configuring dependencies
 

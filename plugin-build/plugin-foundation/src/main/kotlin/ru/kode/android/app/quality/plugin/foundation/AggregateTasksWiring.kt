@@ -2,12 +2,19 @@
 
 package ru.kode.android.app.quality.plugin.foundation
 
+import com.android.build.api.variant.AndroidComponentsExtension
+import org.gradle.api.GradleException
 import org.gradle.api.Project
 import org.gradle.api.Task
 import org.gradle.api.provider.Provider
 import org.gradle.api.tasks.TaskProvider
+import ru.kode.android.app.quality.plugin.foundation.engine.Detekt1Engine
 import ru.kode.android.app.quality.plugin.foundation.engine.DetektEngine
+import ru.kode.android.app.quality.plugin.foundation.engine.hasBuiltInKotlin
+import ru.kode.android.app.quality.plugin.foundation.engine.hasKotlin
 import ru.kode.android.app.quality.plugin.foundation.extension.AppQualityFoundationExtension
+import ru.kode.android.app.quality.plugin.foundation.messages.typeResolutionMultiplatformMessage
+import ru.kode.android.app.quality.plugin.foundation.messages.typeResolutionNothingToAnalyseMessage
 import ru.kode.android.app.quality.plugin.foundation.task.GitHooksSetupTask
 import ru.kode.android.gradle.commons.logger.LoggerService
 import java.lang.management.ManagementFactory
@@ -37,9 +44,9 @@ internal fun configurePrintRequiredGradleJvmargs(project: Project) {
 }
 
 /**
- * Wires the aggregate tasks to subproject detekt tasks through live, lazily filtered task
- * collections: the dependencies resolve at task-graph time, after all subprojects evaluate,
- * so late-registered variant tasks are included and nothing is realized eagerly.
+ * Wires the aggregate tasks to subproject detekt tasks through a provider: the dependencies
+ * resolve at task-graph time, after all subprojects evaluate, so late-registered variant tasks
+ * are seen and nothing is realized eagerly.
  */
 internal fun Project.configureAggregateTasks(
     extension: AppQualityFoundationExtension,
@@ -49,6 +56,7 @@ internal fun Project.configureAggregateTasks(
     engine: DetektEngine,
 ): AggregateTasks {
     val ignoredBuildTypes = extension.detekt.ignoredBuildTypes
+    val typeResolution = extension.detekt.typeResolution
 
     val pipelineCheck =
         tasks.register("pipelineCheck") { task ->
@@ -66,9 +74,11 @@ internal fun Project.configureAggregateTasks(
         }
 
     subprojects { subproject ->
+        val variants = mutableMapOf<String, String>()
+        subproject.pluginManager.withPlugin(ANDROID_BASE_PLUGIN_ID) { subproject.recordVariants(variants) }
         val detektTasks =
-            engine.detektTasks(subproject).matching { task ->
-                ignoredBuildTypes.get().none { ignored -> task.name.contains(ignored, ignoreCase = true) }
+            subproject.provider {
+                subproject.selectedDetektTasks(typeResolution.get(), engine, variants, ignoredBuildTypes.get())
             }
         pipelineCheck.configure { it.dependsOn(detektTasks) }
         prePushCheck.configure { it.dependsOn(detektTasks) }
@@ -79,6 +89,49 @@ internal fun Project.configureAggregateTasks(
 
     return AggregateTasks(pipelineCheck, prePushCheck)
 }
+
+/**
+ * The detekt tasks the aggregate tasks run for this module: the plain `detekt` task with type
+ * resolution off, on KMP (with a warning) and on Java-only Android modules; otherwise detekt's own
+ * type-resolved `detektMain`/`detektTest` (all variants not in ignoredBuildTypes), falling back to
+ * the plain task where detekt registers none (detekt 1 on AGP 9 built-in Kotlin, which
+ * [Detekt1Engine] feeds a classpath). A module without detekt contributes none; an Android module
+ * whose [variants] all have an ignored build type fails the build instead of analysing nothing.
+ */
+private fun Project.selectedDetektTasks(
+    typeResolution: Boolean,
+    engine: DetektEngine,
+    variants: Map<String, String>,
+    ignoredBuildTypes: List<String>,
+): List<TaskProvider<Task>> {
+    if ("detekt" !in tasks.names) return emptyList()
+    val names =
+        when {
+            !typeResolution -> listOf("detekt")
+            plugins.hasPlugin(KOTLIN_MULTIPLATFORM_PLUGIN_ID) -> {
+                logger.warn(typeResolutionMultiplatformMessage(path))
+                listOf("detekt")
+            }
+            !hasKotlin() -> listOf("detekt") // module without Kotlin: nothing to type-resolve
+            // Also true when every variant is disabled: there is nothing to type-resolve either.
+            plugins.hasPlugin(ANDROID_BASE_PLUGIN_ID) &&
+                !(engine is Detekt1Engine && hasBuiltInKotlin()) &&
+                variants.values.all { it in ignoredBuildTypes } ->
+                throw GradleException(typeResolutionNothingToAnalyseMessage(path, variants, ignoredBuildTypes))
+            else -> listOf("detektMain", "detektTest").filter { it in tasks.names }.ifEmpty { listOf("detekt") }
+        }
+    return names.map { tasks.named(it) }
+}
+
+/** Records each AGP variant's name and build type into [variants] as AGP creates them. */
+internal fun Project.recordVariants(variants: MutableMap<String, String>) {
+    extensions.getByType(AndroidComponentsExtension::class.java).onVariants { variant ->
+        variants[variant.name] = variant.buildType.orEmpty()
+    }
+}
+
+internal const val KOTLIN_MULTIPLATFORM_PLUGIN_ID = "org.jetbrains.kotlin.multiplatform"
+internal const val ANDROID_BASE_PLUGIN_ID = "com.android.base"
 
 internal data class AggregateTasks(
     val pipelineCheck: TaskProvider<Task>,

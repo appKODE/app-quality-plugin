@@ -609,7 +609,7 @@ private fun libsCatalogContent(catalog: LibsCatalog): String {
         [versions]
         detekt = "1.23.8"
         ktlintCli = "1.8.0"
-        detektComposeRules = "2.1.0"
+        detektComposeRules = "2.1.1"
 
         [libraries]
         ${libraries.joinToString("\n        ")}

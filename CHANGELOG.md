@@ -5,6 +5,64 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.1.0] - 2026-09-29
+
+### Fixed
+
+- `detekt.typeResolution` means the same on both engines. Off: `pipelineCheck`/`prePushCheck`
+  run only each module's plain `detekt` task, and nothing is compiled. On: they run detekt's own
+  type-resolved `detektMain`/`detektTest`, which on Android cover every variant whose build type
+  is not in `detekt.ignoredBuildTypes` (a flavored app analyses each flavor). Previously engine 2
+  (and engine 1 with AGP 8 + kotlin-android) also ran every variant task with type resolution off.
+- With type resolution on, an Android module whose build types are all in
+  `detekt.ignoredBuildTypes` fails with a message instead of silently analysing nothing.
+- The classpath override that picked a Kotlin compile task by task-name substring is removed;
+  detekt's tasks use their own compilation's classpath.
+- Each detekt task analyses only its own sources; previously every detekt task re-analysed the
+  whole module. On Android, `src/main` is still analysed once per non-ignored variant, so its
+  findings repeat per variant.
+- Engine 1 on AGP 9 built-in Kotlin (no detekt variant tasks there): with type resolution on, the
+  plain `detekt` task gets one variant's classpath, android.jar included: the first whose build
+  type is not in `detekt.ignoredBuildTypes`, preferring `debug`.
+
+### Changed
+
+- Default compose rules bumped to `detekt-rules-compose[-detekt2]` 2.1.1 (`ConditionCouldBeLifted`
+  no longer reports an `if` next to `slot?.invoke()` and other statements with composable calls).
+- For detekt, `detekt.ignoredBuildTypes` is passed to detekt, which skips those variants' tasks
+  (exact, case-sensitive build type match), instead of AQP filtering task names by substring.
+  Android lint task filtering is unchanged.
+- Kotlin Multiplatform modules keep the plain `detekt` task with type resolution on and log a
+  warning: there is no single compilation to analyse.
+- Android modules without Kotlin keep the plain `detekt` task with type resolution on.
+
+### Known limitations
+
+- Engine 1 (detekt 1.23.8, a Kotlin 2.0 compiler) cannot read class metadata of project
+  dependencies compiled with a Kotlin language version newer than 2.1: their types stay
+  unresolved, so type-resolution rules miss findings involving them. Engine 2 has no such limit.
+
+### Upgrading from 3.0.x
+
+1. Engine 2 users who saw type-resolution-only findings (`UnusedPrivateProperty`,
+   `UseDataClass`, ...) with `typeResolution` off got them by accident; set
+   `detekt.typeResolution.set(true)` to keep them. The same applies to engine 1 with AGP 8 +
+   kotlin-android, whose `detektDebug` ran implicitly.
+2. Report paths under `build/reports/detekt/`: `detekt.*` with type resolution off. With it on:
+   `main.*`, `test.*` on JVM modules; `<variant>.*`, `<variant>UnitTest.*`,
+   `<variant>AndroidTest.*` per analysed variant on Android modules (engine 2, or AGP 8 +
+   kotlin-android); still `detekt.*` for engine 1 on AGP 9 built-in Kotlin and for Java-only
+   Android modules.
+3. Expect new findings with type resolution on; refresh baselines. A baseline created by
+   `detektBaseline` still applies to the type-resolved tasks.
+4. With type resolution on, `detekt.sources.include` and `detekt.sources.exclude` apply only to
+   the plain task; detekt's own tasks analyse their compilation's source dirs, so exclude patterns
+   such as `src/main/...` no longer filter them. Exclude generated code in the detekt config
+   (rule-set `excludes:` patterns) instead.
+5. `detekt.ignoredBuildTypes` entries must match build type names exactly (case-sensitive).
+6. With type resolution on, a module whose build types are all in `detekt.ignoredBuildTypes` now
+   fails the build: remove a build type from the list or turn type resolution off.
+
 ## [3.0.0] - 2026-09-28
 
 ### Changed

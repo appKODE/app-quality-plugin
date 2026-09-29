@@ -283,6 +283,48 @@ fun missingDetektConfigFileMessage(
     """.trimMargin()
 
 /**
+ * Error message shown when `detekt.typeResolution` is on but an Android module has no variant
+ * outside `detekt.ignoredBuildTypes` to analyse with type resolution.
+ */
+fun typeResolutionNothingToAnalyseMessage(
+    projectPath: String,
+    variants: Map<String, String>,
+    ignoredBuildTypes: List<String>,
+): String =
+    """
+        |
+        |============================================================
+        |          TYPE RESOLUTION: NOTHING TO ANALYSE
+        |============================================================
+        | Project '$projectPath' has no variant with a Kotlin
+        | compilation and a detekt task to analyse with
+        | detekt.typeResolution.
+        |
+        |   variants:          ${variants.entries.joinToString { "${it.key} (${it.value})" }.ifEmpty { "none" }}
+        |   ignoredBuildTypes: $ignoredBuildTypes
+        |
+        | FIX — any one of:
+        |  1. Remove a build type from detekt.ignoredBuildTypes
+        |  2. Set detekt.typeResolution = false
+        |============================================================
+    """.trimMargin()
+
+/**
+ * Warning shown when `detekt.typeResolution` is on for a Kotlin Multiplatform module, which has
+ * no single compilation to analyse: its plain detekt task runs without type resolution.
+ */
+fun typeResolutionMultiplatformMessage(projectPath: String): String =
+    """
+        |
+        |============================================================
+        |      TYPE RESOLUTION NOT SUPPORTED FOR MULTIPLATFORM
+        |============================================================
+        | Project '$projectPath' is a Kotlin Multiplatform module;
+        | detekt runs on it without type resolution.
+        |============================================================
+    """.trimMargin()
+
+/**
  * Error message shown when the editor configuration file is missing.
  */
 fun noEditorConfigFileMessage(editorConfig: File): String =
