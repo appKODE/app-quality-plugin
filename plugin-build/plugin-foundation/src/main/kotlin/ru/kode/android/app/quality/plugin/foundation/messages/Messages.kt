@@ -283,15 +283,18 @@ fun missingDetektConfigFileMessage(
     """.trimMargin()
 
 /**
- * Error message shown when `detekt.typeResolution` is on but an Android module has no variant
- * outside `detekt.ignoredBuildTypes` to analyse with type resolution.
+ * Error message shown when `detekt.typeResolution` is on but `detekt.ignoredBuildTypes` and
+ * `detekt.ignoredTypeResolutionVariants` leave an Android module nothing to analyse.
  */
 fun typeResolutionNothingToAnalyseMessage(
     projectPath: String,
     variants: Map<String, String>,
     ignoredBuildTypes: List<String>,
-): String =
-    """
+    ignoredTypeResolutionVariants: List<String>,
+    unregisteredComponents: List<String>,
+): String {
+    val variantList = variants.entries.joinToString { "${it.key} (${it.value})" }.ifEmpty { "none" }
+    return """
         |
         |============================================================
         |          TYPE RESOLUTION: NOTHING TO ANALYSE
@@ -300,14 +303,31 @@ fun typeResolutionNothingToAnalyseMessage(
         | compilation and a detekt task to analyse with
         | detekt.typeResolution.
         |
-        |   variants:          ${variants.entries.joinToString { "${it.key} (${it.value})" }.ifEmpty { "none" }}
-        |   ignoredBuildTypes: $ignoredBuildTypes
+        |   variants:                      $variantList
+        |   ignoredBuildTypes:             $ignoredBuildTypes
+        |   ignoredTypeResolutionVariants: $ignoredTypeResolutionVariants
+        |   kept, but with no task:        $unregisteredComponents
+        |
+        | Both lists match by substring, ignoring case. Kept
+        | components with no task may be skipped by detekt's own
+        | ignoredVariants/ignoredFlavors.
         |
         | FIX — any one of:
-        |  1. Remove a build type from detekt.ignoredBuildTypes
-        |  2. Set detekt.typeResolution = false
+        |  1. Remove an entry from detekt.ignoredBuildTypes or
+        |     detekt.ignoredTypeResolutionVariants
+        |  2. Remove the variant from detekt's own ignoredVariants/
+        |     ignoredFlavors
+        |  3. Set detekt.typeResolution = false
         |============================================================
-    """.trimMargin()
+        """.trimMargin()
+}
+
+/** Info log of the Android components a module analyses with type resolution, and the rest. */
+fun typeResolutionComponentsMessage(
+    projectPath: String,
+    selected: List<String>,
+    skipped: List<String>,
+): String = "Project '$projectPath': detekt type resolution analyses $selected, skips $skipped"
 
 /**
  * Warning shown when `detekt.typeResolution` is on for a Kotlin Multiplatform module, which has

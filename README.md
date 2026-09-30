@@ -82,7 +82,7 @@ In root `build.gradle.kts`:
 
 ```kotlin
 plugins {
-    id("ru.kode.android.app-quality.foundation") version "3.1.0"
+    id("ru.kode.android.app-quality.foundation") version "3.2.0"
 }
 ```
 
@@ -113,7 +113,7 @@ put its Gradle plugin on the classpath in the root build and select engine 2:
 // root build.gradle.kts
 plugins {
     id("dev.detekt") version "2.0.0-alpha.6" apply false
-    id("ru.kode.android.app-quality.foundation") version "3.1.0"
+    id("ru.kode.android.app-quality.foundation") version "3.2.0"
 }
 ```
 
@@ -142,19 +142,27 @@ See [CHANGELOG.md](CHANGELOG.md) "Upgrading from 2.x".
 
 | module | off | on |
 |---|---|---|
-| JVM (`kotlin.jvm`), Android on engine 2 or AGP 8 + kotlin-android | `detekt` | `detektMain`, `detektTest` |
-| Android, engine 1 on AGP 9 built-in Kotlin | `detekt` | `detekt`, with variant `V`'s classpath |
+| JVM (`kotlin.jvm`) | `detekt` | `detektMain`, `detektTest` |
+| Android on engine 2 or AGP 8 + kotlin-android | `detekt` | `detekt<C>` per analysed component `C` |
+| Android, engine 1 on AGP 9 built-in Kotlin | `detekt` | `detekt`, with the analysed components' classpath (without `src/androidTest*` unless androidTest is analysed) |
 | Kotlin Multiplatform | `detekt` | `detekt` without type resolution, plus a warning |
 | Android without Kotlin | `detekt` | `detekt` without type resolution |
 
 - Off: nothing is compiled.
-- On: the module and its dependencies compile first. On Android, detekt's `detektMain` and
-  `detektTest` cover every variant whose build type is not in `detekt.ignoredBuildTypes`, with
-  its unit and android tests; a flavored app analyses each flavor, and `src/main` findings repeat
-  per variant. Build types match `detekt.ignoredBuildTypes` exactly (case-sensitive); with every
-  build type ignored, the build fails.
-- `V` (engine 1 on AGP 9 built-in Kotlin only) is the first variant whose build type is not in
-  `detekt.ignoredBuildTypes`, preferring `debug`.
+- On: the module and its dependencies compile first. detekt's own `detektMain`/`detektTest` are
+  not used on Android: they cover every variant not in detekt's exact-match ignored build types,
+  which compiles release and androidTest of every module.
+- Android components are `<variant>`, `<variant>UnitTest` and `<variant>AndroidTest`. A component
+  is skipped when its variant name or build type contains a `detekt.ignoredBuildTypes` entry, or
+  its name contains a `detekt.ignoredTypeResolutionVariants` entry (default `["AndroidTest"]`).
+  Both match by substring, ignoring case. With nothing left, the build fails. Substrings match
+  flavor names too: the default `demo`, `internal` and `external` also skip a `demo` flavor.
+  `--info` logs the analysed and skipped components per module.
+- By default that is `detektDebug` and `detektDebugUnitTest`. `releaseGoogle` is skipped by
+  `release`; custom build types like `preprod` are analysed until added to `ignoredBuildTypes`.
+  A flavored module analyses each flavor's debug variant; skip a flavor with
+  `detekt.ignoredTypeResolutionVariants.append("ruStore")`. Set that list empty to analyse
+  androidTest.
 - Running `./gradlew :module:detekt` by hand is always without type resolution, except for engine 1
   on AGP 9 built-in Kotlin.
 - `detekt.sources` applies only to the plain `detekt` task. detekt's own tasks analyse their
@@ -227,6 +235,7 @@ appQualityFoundation {
             exclude.set(listOf("tmpGenerated"))
         }
         typeResolution.set(false) // true: compile and run detekt's type-resolved tasks, see "Type resolution"
+        ignoredTypeResolutionVariants.set(listOf("AndroidTest")) // Android components skipped by type resolution, by substring
         buildUponDefaultConfig.set(false)
         // Only the filename is used — it's re-resolved per subproject, so this is safe to set
         // once here even when app-quality-plugin is applied at the root only.
@@ -266,10 +275,11 @@ appQualityFoundation {
 | `gitHooksEnabled` | `true` |
 | `ktlint.sources.include` | `["**/src/*/java/**/*.kt", "**/src/*/kotlin/**/*.kt"]` (while `useDefaults` is `true`) |
 | `ktlint.sources.exclude` | `["**/build/**", "**/generated/**", "**/templates/**", "**/src/test/**", "**/src/androidTest/**", "**/src/commonTest/**", "templates/**", "**/schema/**/*.kt"]` (while `useDefaults` is `true`) |
-| `detekt.ignoredBuildTypes` | `["release", "internal", "external", "demo"]` (build types skipped by type resolution) |
+| `detekt.ignoredBuildTypes` | `["release", "internal", "external", "demo"]` (build types skipped by type resolution; on Android matched by substring against variant name and build type) |
 | `detekt.sources.include` | per-platform Kotlin/Java source dirs (while `useDefaults` is `true`) |
 | `detekt.sources.exclude` | `[]` |
 | `detekt.typeResolution` | `false` (see [Type resolution](#type-resolution)) |
+| `detekt.ignoredTypeResolutionVariants` | `["AndroidTest"]` (Android components skipped by type resolution, by substring) |
 | `detekt.buildUponDefaultConfig` | `false` |
 | `detekt.baseline` | unset (no baseline); when set, resolved per-subproject by filename — safe to configure once regardless of where the plugin is applied |
 | `detekt.xmlReportEnabled` | `false`; engine 2 has no `xml` report, so this enables detekt 2's `checkstyle` report (the same checkstyle XML, still `build/reports/detekt/<task>.xml`) |

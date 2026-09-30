@@ -96,6 +96,16 @@ abstract class DetektConfig
                 .convention(false)
 
         /**
+         * Android components (`debug`, `debugUnitTest`, `googleDebugAndroidTest`, ...) not analysed
+         * with [typeResolution]: a component is skipped when its name contains any entry, ignoring
+         * case, as with [ignoredBuildTypes]. Default `["AndroidTest"]`: androidTest sources are
+         * not compiled; set it empty to analyse them.
+         */
+        val ignoredTypeResolutionVariants: ListProperty<String> =
+            objectFactory.listProperty(String::class.java)
+                .convention(listOf("AndroidTest"))
+
+        /**
          * Optional detekt baseline file: findings already present in it are suppressed.
          * Unset by default (no baseline) — set to adopt detekt incrementally on a legacy
          * module, e.g. `baseline.set(layout.projectDirectory.file("detekt-baseline.xml"))`.

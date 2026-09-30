@@ -17,8 +17,10 @@ import ru.kode.android.app.quality.plugin.foundation.KOTLIN_MULTIPLATFORM_PLUGIN
 import ru.kode.android.app.quality.plugin.foundation.configureDetektSources
 import ru.kode.android.app.quality.plugin.foundation.excludeGeneratedSources
 import ru.kode.android.app.quality.plugin.foundation.extension.AppQualityFoundationExtension
+import ru.kode.android.app.quality.plugin.foundation.messages.typeResolutionComponentsMessage
 import ru.kode.android.app.quality.plugin.foundation.messages.typeResolutionNothingToAnalyseMessage
 import ru.kode.android.app.quality.plugin.foundation.recordVariants
+import ru.kode.android.app.quality.plugin.foundation.typeResolutionComponents
 import ru.kode.android.gradle.commons.logger.LoggerService
 
 /** detekt 1.23 (`io.gitlab.arturbosch.detekt`), bundled with the plugin. */
@@ -80,22 +82,34 @@ internal object Detekt1Engine : DetektEngine {
             project.configureDetektSources(task, detektConfig)
         }
         // Detekt 1.23 has no type-resolved tasks on AGP 9 built-in Kotlin, so the plain task
-        // gets the selected variant's classpath (main, unit test, androidTest). Delete with engine 1.
+        // gets the classpath of the components analysed with type resolution. Delete with engine 1.
         project.pluginManager.withPlugin(ANDROID_BASE_PLUGIN_ID) {
             val variants = mutableMapOf<String, String>()
             project.recordVariants(variants)
             project.tasks.named("detekt", Detekt::class.java).configure { task ->
                 if (!detektConfig.typeResolution.get() || !project.hasBuiltInKotlin()) return@configure
                 val ignoredBuildTypes = detektConfig.ignoredBuildTypes.get()
-                val variant = selectVariant(variants, ignoredBuildTypes)
+                val ignoredComponents = detektConfig.ignoredTypeResolutionVariants.get()
                 val kotlin = project.extensions.findByType(KotlinAndroidExtension::class.java)
-                val compilations =
-                    variant?.let { listOf(it, "${it}UnitTest", "${it}AndroidTest") }.orEmpty()
-                        .mapNotNull { kotlin?.target?.compilations?.findByName(it) }
+                val components = typeResolutionComponents(variants, ignoredBuildTypes, ignoredComponents)
+                // Without an androidTest classpath its sources would be analysed half-resolved.
+                if (components.none { it.endsWith("AndroidTest") }) {
+                    task.exclude("**/src/androidTest/**", "**/src/androidTest*/**")
+                }
+                val compilations = components.mapNotNull { kotlin?.target?.compilations?.findByName(it) }
+                val selected = compilations.map { it.name }
+                val skipped = typeResolutionComponents(variants, emptyList(), emptyList()) - selected.toSet()
+                project.logger.info(typeResolutionComponentsMessage(project.path, selected, skipped))
                 if (compilations.isEmpty()) {
                     // Fail on run, not on configuration, so `./gradlew tasks` still works.
                     val message =
-                        typeResolutionNothingToAnalyseMessage(project.path, variants.toMap(), ignoredBuildTypes)
+                        typeResolutionNothingToAnalyseMessage(
+                            project.path,
+                            variants.toMap(),
+                            ignoredBuildTypes,
+                            ignoredComponents,
+                            components,
+                        )
                     task.doFirst { throw GradleException(message) }
                     return@configure
                 }
@@ -110,23 +124,6 @@ internal object Detekt1Engine : DetektEngine {
     }
 
     override fun detektTasks(project: Project): TaskCollection<out Task> = project.tasks.withType(Detekt::class.java)
-}
-
-/**
- * The variant analysed with type resolution: among [variants] (name to build type) whose build
- * type is not ignored, a `debug` one first, then the alphabetically first name. One variant is
- * enough: `src/main` is the same in all of them.
- */
-private fun selectVariant(
-    variants: Map<String, String>,
-    ignoredBuildTypes: List<String>,
-): String? {
-    val candidates =
-        variants
-            .filterValues { it !in ignoredBuildTypes }
-            .toSortedMap()
-    val debug = candidates.entries.firstOrNull { it.value == "debug" }
-    return debug?.key ?: candidates.keys.firstOrNull()
 }
 
 /** An Android module compiled by AGP 9 built-in Kotlin: detekt 1 registers no variant tasks for it. */
