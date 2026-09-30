@@ -3,6 +3,26 @@
 Upgrade notes per release. Sections list breaking changes first, then behavior changes and
 new opt-in capabilities.
 
+## 3.2.0 (type-resolved Android variants) — migrating from 3.1.0
+
+With `detekt.typeResolution` on, Android modules no longer run detekt's `detektMain`/`detektTest`.
+AQP runs `detekt<V>`, `detekt<V>UnitTest` and `detekt<V>AndroidTest` per variant, minus those
+matched by `detekt.ignoredBuildTypes` or `detekt.ignoredTypeResolutionVariants`. Both lists match
+by substring, ignoring case. With the defaults that is `detektDebug` and `detektDebugUnitTest`;
+release variants and androidTest are no longer compiled.
+
+- `ignoredBuildTypes.appendAll("releaseGoogle", "releaseRuStore")` is now redundant for
+  `pipelineCheck`/`prePushCheck`: `release` matches them as a substring. (It is still passed to
+  detekt's own extension, so keep it if you run `detektMain`/`detektTest` by hand.) Build types
+  that share no entry, like `preprod` or `mobile`, must still be added:
+  `detekt.ignoredBuildTypes.append("preprod")`.
+- androidTest is off by default. To analyse it: `detekt.ignoredTypeResolutionVariants.empty()`.
+- A flavored module analyses the debug variant of every flavor; skip a flavor by name with
+  `detekt.ignoredTypeResolutionVariants.append("ruStore")`.
+- Findings from other variants' source sets (`src/release`, `src/<flavor>`, ...) are no longer
+  reported, nor androidTest findings while androidTest is ignored. Engine 1 on AGP 9 built-in
+  Kotlin also drops `src/androidTest*` from its plain `detekt` task then.
+
 ## 3.1.0 (type resolution fix) — migrating from 3.0.x
 
 ### Behavior change: `detekt.typeResolution` decides which detekt tasks run

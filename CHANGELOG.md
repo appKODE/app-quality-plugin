@@ -5,6 +5,29 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.2.0] - 2026-09-30
+
+### Fixed
+
+- With `detekt.typeResolution` on, Android modules ran detekt's `detektMain`/`detektTest`, which
+  cover every variant whose build type is not in detekt's exact-match ignored build types (custom
+  ones like `releaseGoogle` slipped through) plus every `detekt<Variant>AndroidTest`: CI compiled
+  release and androidTest of every module. Now AQP runs `detekt<V>`, `detekt<V>UnitTest` and
+  `detekt<V>AndroidTest` for each variant `V`, minus those matched by `detekt.ignoredBuildTypes`
+  (by variant name or build type) or `detekt.ignoredTypeResolutionVariants`, both by substring,
+  ignoring case. By default that is `detektDebug` and `detektDebugUnitTest`. JVM modules keep
+  `detektMain`/`detektTest`; KMP is unchanged.
+- Engine 1 on AGP 9 built-in Kotlin: the plain `detekt` task gets the classpath of the same
+  components, so androidTest is no longer compiled by default, and its `src/androidTest*`
+  sources are no longer analysed then.
+
+### Added
+
+- `detekt.ignoredTypeResolutionVariants` (default `["AndroidTest"]`): Android components
+  (`debug`, `debugUnitTest`, `googleDebugAndroidTest`, ...) not analysed with type resolution,
+  matched by substring. Set it empty to analyse androidTest.
+- `--info` logs each Android module's analysed and skipped type resolution components.
+
 ## [3.1.0] - 2026-09-29
 
 ### Fixed

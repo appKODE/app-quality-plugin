@@ -16,7 +16,13 @@ dependencies {
     compileOnly(libs.detekt2.plugin)
 
     compileOnly(libs.agp)
+
+    testImplementation(platform(libs.junitBom))
+    testImplementation("org.junit.jupiter:junit-jupiter")
+    testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }
+
+tasks.test { useJUnitPlatform() }
 
 val versionCatalog = extensions.getByType<VersionCatalogsExtension>().named("libs")
 val generateDefaultToolVersions =
