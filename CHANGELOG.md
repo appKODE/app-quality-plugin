@@ -5,6 +5,22 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.2.1] - 2026-09-30
+
+### Fixed
+
+- `detekt.ignoredBuildTypes` and `detekt.ignoredTypeResolutionVariants` held their defaults as a
+  convention, so `addAll(...)` discarded them: `ignoredBuildTypes.addAll("preprod")` left only
+  `preprod` and release variants were analysed again. The defaults are now initial values:
+  `addAll(...)` appends to them, `set(...)` still replaces them and `set(emptyList())` clears them.
+  Projects casting to Gradle's internal `AbstractCollectionProperty` for `appendAll` can switch to
+  `addAll`.
+  `unset()` (or Groovy `= null`) restores the defaults. `ignoredBuildTypes` also selects the
+  Android lint tasks `pipelineCheck`/`prePushCheck` run and is passed to detekt's own
+  `ignoredBuildTypes`: consumers who called `addAll` on ≤3.2.0 now get `release` (and the other
+  defaults) ignored again, so release lint and detekt tasks drop out. Use `set(...)` to keep the
+  old result.
+
 ## [3.2.0] - 2026-09-30
 
 ### Fixed

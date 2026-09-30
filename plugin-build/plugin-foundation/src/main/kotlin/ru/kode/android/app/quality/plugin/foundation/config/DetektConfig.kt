@@ -61,9 +61,15 @@ abstract class DetektConfig
             configureGroovy(closure, compose)
         }
 
+        /**
+         * Build types not analysed with [typeResolution], matched by substring ignoring case.
+         * Default `["release", "internal", "external", "demo"]`, held as the initial value:
+         * `addAll(...)` appends to it, `set(...)` replaces it, `unset()` restores it.
+         */
         val ignoredBuildTypes: ListProperty<String> =
-            objectFactory.listProperty(String::class.java)
-                .convention(listOf("release", "internal", "external", "demo"))
+            listOf("release", "internal", "external", "demo").let { defaults ->
+                objectFactory.listProperty(String::class.java).value(defaults).convention(defaults)
+            }
 
         /**
          * The detekt source-path slot: `include`/`exclude` globs (bare, no `!` prefix),
@@ -99,11 +105,13 @@ abstract class DetektConfig
          * Android components (`debug`, `debugUnitTest`, `googleDebugAndroidTest`, ...) not analysed
          * with [typeResolution]: a component is skipped when its name contains any entry, ignoring
          * case, as with [ignoredBuildTypes]. Default `["AndroidTest"]`: androidTest sources are
-         * not compiled; set it empty to analyse them.
+         * not compiled; set it empty to analyse them. The default is the initial value:
+         * `addAll(...)` appends to it, `set(...)` replaces it, `unset()` restores it.
          */
         val ignoredTypeResolutionVariants: ListProperty<String> =
-            objectFactory.listProperty(String::class.java)
-                .convention(listOf("AndroidTest"))
+            listOf("AndroidTest").let { defaults ->
+                objectFactory.listProperty(String::class.java).value(defaults).convention(defaults)
+            }
 
         /**
          * Optional detekt baseline file: findings already present in it are suppressed.
