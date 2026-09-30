@@ -3,6 +3,14 @@
 Upgrade notes per release. Sections list breaking changes first, then behavior changes and
 new opt-in capabilities.
 
+## 3.2.1 (`addAll` keeps the defaults) — migrating from 3.2.0
+
+`detekt.ignoredBuildTypes.addAll(...)` and `detekt.ignoredTypeResolutionVariants.addAll(...)` now
+append to the defaults; on 3.2.0 and earlier they dropped them. Upgrade before switching to
+`addAll`, and replace any cast to Gradle's internal `AbstractCollectionProperty` for `appendAll`
+with `addAll`. If you used `addAll` on ≤3.2.0 and relied on it dropping the defaults (e.g.
+`release` no longer ignored), use `set(...)` instead.
+
 ## 3.2.0 (type-resolved Android variants) — migrating from 3.1.0
 
 With `detekt.typeResolution` on, Android modules no longer run detekt's `detektMain`/`detektTest`.
@@ -11,14 +19,14 @@ matched by `detekt.ignoredBuildTypes` or `detekt.ignoredTypeResolutionVariants`.
 by substring, ignoring case. With the defaults that is `detektDebug` and `detektDebugUnitTest`;
 release variants and androidTest are no longer compiled.
 
-- `ignoredBuildTypes.appendAll("releaseGoogle", "releaseRuStore")` is now redundant for
+- `ignoredBuildTypes.addAll("releaseGoogle", "releaseRuStore")` is now redundant for
   `pipelineCheck`/`prePushCheck`: `release` matches them as a substring. (It is still passed to
   detekt's own extension, so keep it if you run `detektMain`/`detektTest` by hand.) Build types
   that share no entry, like `preprod` or `mobile`, must still be added:
-  `detekt.ignoredBuildTypes.append("preprod")`.
+  `detekt.ignoredBuildTypes.addAll("preprod")`.
 - androidTest is off by default. To analyse it: `detekt.ignoredTypeResolutionVariants.empty()`.
 - A flavored module analyses the debug variant of every flavor; skip a flavor by name with
-  `detekt.ignoredTypeResolutionVariants.append("ruStore")`.
+  `detekt.ignoredTypeResolutionVariants.addAll("ruStore")`.
 - Findings from other variants' source sets (`src/release`, `src/<flavor>`, ...) are no longer
   reported, nor androidTest findings while androidTest is ignored. Engine 1 on AGP 9 built-in
   Kotlin also drops `src/androidTest*` from its plain `detekt` task then.

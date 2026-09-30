@@ -82,7 +82,7 @@ In root `build.gradle.kts`:
 
 ```kotlin
 plugins {
-    id("ru.kode.android.app-quality.foundation") version "3.2.0"
+    id("ru.kode.android.app-quality.foundation") version "3.2.1"
 }
 ```
 
@@ -113,7 +113,7 @@ put its Gradle plugin on the classpath in the root build and select engine 2:
 // root build.gradle.kts
 plugins {
     id("dev.detekt") version "2.0.0-alpha.6" apply false
-    id("ru.kode.android.app-quality.foundation") version "3.2.0"
+    id("ru.kode.android.app-quality.foundation") version "3.2.1"
 }
 ```
 
@@ -161,7 +161,7 @@ See [CHANGELOG.md](CHANGELOG.md) "Upgrading from 2.x".
 - By default that is `detektDebug` and `detektDebugUnitTest`. `releaseGoogle` is skipped by
   `release`; custom build types like `preprod` are analysed until added to `ignoredBuildTypes`.
   A flavored module analyses each flavor's debug variant; skip a flavor with
-  `detekt.ignoredTypeResolutionVariants.append("ruStore")`. Set that list empty to analyse
+  `detekt.ignoredTypeResolutionVariants.addAll("ruStore")`. Set that list empty to analyse
   androidTest.
 - Running `./gradlew :module:detekt` by hand is always without type resolution, except for engine 1
   on AGP 9 built-in Kotlin.
@@ -229,6 +229,7 @@ appQualityFoundation {
     }
 
     detekt {
+        // addAll("preprod") appends to the defaults, set replaces them
         ignoredBuildTypes.set(listOf("release", "internal", "external", "demo"))
         sources {
             include.set(listOf("src/custom/kotlin"))

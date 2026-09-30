@@ -203,7 +203,7 @@ class TypeResolutionTest {
             qualityConfig =
                 QualityConfig(
                     detekt = DetektBlock(typeResolution = true),
-                    extraExtensionContent = if (ignored) "detekt.ignoredBuildTypes.append(\"preprod\")" else "",
+                    extraExtensionContent = if (ignored) "detekt.ignoredBuildTypes.addAll(\"preprod\")" else "",
                 ),
             detektEngine = engine,
         )
@@ -215,6 +215,40 @@ class TypeResolutionTest {
         val expected = listOf(":lib:detektDebug", ":lib:detektDebugUnitTest") + if (ignored) emptyList() else listOf(":lib:detektPreprod")
         assertEquals(if (engine == 1) listOf(":lib:detekt") else expected.sorted(), result.variantDetektTasks("lib"))
         assertEquals(!ignored, ":lib:compilePreprodKotlin" in result.compileTasks(), "got: ${result.compileTasks()}")
+    }
+
+    // Defaults are initial values and conventions: addAll appends, set replaces, unset restores them.
+    @ParameterizedTest(name = "kotlinDsl {0}: {1}")
+    @CsvSource(
+        delimiter = '|',
+        value = [
+            "true  | detekt.ignoredBuildTypes.addAll(\"preprod\")             | Debug DebugUnitTest",
+            "false | detekt.ignoredBuildTypes.addAll(\"preprod\")             | Debug DebugUnitTest",
+            "true  | detekt.ignoredBuildTypes.set(listOf(\"preprod\"))        | Debug DebugUnitTest Release",
+            "true  | detekt.ignoredTypeResolutionVariants.addAll(\"Preprod\") | Debug DebugUnitTest",
+            "true  | detekt.ignoredTypeResolutionVariants.set(listOf(\"Preprod\")) | Debug DebugAndroidTest DebugUnitTest",
+            "false | detekt.ignoredBuildTypes = [\"preprod\"]                 | Debug DebugUnitTest Release",
+            "true  | detekt.ignoredBuildTypes.set(listOf(\"x\")); detekt.ignoredBuildTypes.unset() | Debug DebugUnitTest Preprod",
+            "false | detekt.ignoredBuildTypes = [\"x\"]; detekt.ignoredBuildTypes = null | Debug DebugUnitTest Preprod",
+        ],
+    )
+    fun `ignored lists keep their defaults on addAll, drop them on set and restore them on unset`(
+        kotlinDsl: Boolean,
+        config: String,
+        components: String,
+    ) {
+        val projectDir = projectDir(2)
+        projectDir.createQualityProject(
+            modules = listOf(module("lib", ModuleType.AndroidLib).copy(buildTypes = listOf("preprod"))),
+            qualityConfig = QualityConfig(detekt = DetektBlock(typeResolution = true), extraExtensionContent = config),
+            useKotlinDsl = kotlinDsl,
+            detektEngine = 2,
+        )
+        projectDir.initGit()
+
+        val result = projectDir.runTasks("pipelineCheck")
+
+        assertEquals(components.split(" ").map { ":lib:detekt$it" }.sorted(), result.variantDetektTasks("lib"))
     }
 
     @ParameterizedTest(name = "engine {0}")
@@ -323,7 +357,7 @@ class TypeResolutionTest {
                 QualityConfig(
                     detekt = DetektBlock(typeResolution = true),
                     extraExtensionContent =
-                        XML + if (ruStoreIgnored) "\ndetekt.ignoredTypeResolutionVariants.append(\"ruStore\")" else "",
+                        XML + if (ruStoreIgnored) "\ndetekt.ignoredTypeResolutionVariants.addAll(\"ruStore\")" else "",
                 ),
             detektEngine = engine,
         )
