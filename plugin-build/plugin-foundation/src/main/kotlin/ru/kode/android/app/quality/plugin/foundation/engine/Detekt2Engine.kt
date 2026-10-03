@@ -68,11 +68,14 @@ internal object Detekt2Engine : DetektEngine {
             task.usesService(loggerProvider)
             task.jvmTarget.set(extension.jvmTarget.map { it.target })
             task.debug.set(extension.verboseLogging)
+            task.config.from(detektConfig.additionalConfigs)
         }
         project.tasks.withType(Detekt::class.java).configureEach { task ->
             task.usesService(loggerProvider)
             task.debug.set(extension.verboseLogging)
             excludeGeneratedSources(task)
+            // After detekt seeds the task config from the extension, so these merge last.
+            task.config.from(detektConfig.additionalConfigs)
             task.reports {
                 // detekt 2 has no xml report; checkstyle is the same format under its real name.
                 it.checkstyle.required.set(detektConfig.xmlReportEnabled)

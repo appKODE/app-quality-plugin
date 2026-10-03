@@ -3,6 +3,7 @@ package ru.kode.android.app.quality.plugin.foundation.config
 import groovy.lang.Closure
 import groovy.lang.DelegatesTo
 import org.gradle.api.Action
+import org.gradle.api.file.ConfigurableFileCollection
 import org.gradle.api.file.RegularFileProperty
 import org.gradle.api.model.ObjectFactory
 import org.gradle.api.provider.ListProperty
@@ -123,6 +124,14 @@ abstract class DetektConfig
          * once at the root (root-only application) or per-module (via a convention plugin).
          */
         val baseline: RegularFileProperty = objectFactory.fileProperty()
+
+        /**
+         * Extra detekt config files applied on top of the resolved per-platform configs, in every
+         * module, on every detekt task: detekt merges them last, so their values win (a list such
+         * as `ForbiddenImport.imports` replaces the bundled one, so repeat the entries to keep).
+         * Empty by default, e.g. `additionalConfigs.from("config/detekt-extra.yml")`.
+         */
+        val additionalConfigs: ConfigurableFileCollection = objectFactory.fileCollection()
 
         /** Emit detekt's XML report per task. Default `false`. */
         val xmlReportEnabled: Property<Boolean> =

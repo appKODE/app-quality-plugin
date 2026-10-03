@@ -3,7 +3,6 @@
 package ru.kode.android.app.quality.plugin.foundation
 
 import com.android.build.api.variant.AndroidComponentsExtension
-import org.gradle.api.GradleException
 import org.gradle.api.Project
 import org.gradle.api.Task
 import org.gradle.api.provider.Provider
@@ -14,8 +13,8 @@ import ru.kode.android.app.quality.plugin.foundation.engine.hasBuiltInKotlin
 import ru.kode.android.app.quality.plugin.foundation.engine.hasKotlin
 import ru.kode.android.app.quality.plugin.foundation.extension.AppQualityFoundationExtension
 import ru.kode.android.app.quality.plugin.foundation.messages.typeResolutionComponentsMessage
+import ru.kode.android.app.quality.plugin.foundation.messages.typeResolutionFallbackMessage
 import ru.kode.android.app.quality.plugin.foundation.messages.typeResolutionMultiplatformMessage
-import ru.kode.android.app.quality.plugin.foundation.messages.typeResolutionNothingToAnalyseMessage
 import ru.kode.android.app.quality.plugin.foundation.task.GitHooksSetupTask
 import ru.kode.android.gradle.commons.logger.LoggerService
 import java.lang.management.ManagementFactory
@@ -106,7 +105,7 @@ internal fun Project.configureAggregateTasks(
  * every variant outside detekt's exact-match ignoredBuildTypes, androidTest included), or the
  * plain task where detekt registers none (detekt 1 on AGP 9 built-in Kotlin, which
  * [Detekt1Engine] feeds those components' classpath). A module without detekt contributes none;
- * an Android module with nothing left to analyse fails the build instead of analysing nothing.
+ * an Android module with no component left to analyse falls back to the plain task, with a warning.
  */
 private fun Project.selectedDetektTasks(
     typeResolution: Boolean,
@@ -133,8 +132,8 @@ private fun Project.selectedDetektTasks(
                 selected
                     .map { "detekt" + it.replaceFirstChar(Char::uppercase) }
                     .ifEmpty {
-                        throw GradleException(
-                            typeResolutionNothingToAnalyseMessage(
+                        logger.warn(
+                            typeResolutionFallbackMessage(
                                 path,
                                 variants,
                                 ignoredBuildTypes,
@@ -142,6 +141,7 @@ private fun Project.selectedDetektTasks(
                                 unregistered,
                             ),
                         )
+                        listOf("detekt")
                     }
             }
             else -> listOf("detektMain", "detektTest").filter { it in tasks.names }.ifEmpty { listOf("detekt") }
