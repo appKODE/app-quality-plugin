@@ -138,7 +138,11 @@ class TypeResolutionTest {
                         extraBuildContent = "dependencies { testImplementation project(':dep') }",
                     ),
                 ).map { it.copy(detektKotlinConfigContent = UNNECESSARY_SAFE_CALL_CONFIG) },
-            qualityConfig = QualityConfig(detekt = DetektBlock(typeResolution = typeResolution), extraExtensionContent = XML),
+            qualityConfig =
+                QualityConfig(
+                    detekt = DetektBlock(typeResolution = typeResolution),
+                    extraExtensionContent = XML,
+                ),
             detektEngine = engine,
         )
         projectDir.initGit()
@@ -181,12 +185,16 @@ class TypeResolutionTest {
                 // Detekt 1 has no variant tasks on AGP 9 built-in Kotlin: AQP gives the plain task a classpath.
                 listOf(":app:detekt", ":lib:detekt")
             } else {
-                val components = listOf("Debug", "DebugUnitTest") + if (androidTest) listOf("DebugAndroidTest") else emptyList()
+                val components =
+                    listOf("Debug", "DebugUnitTest") + if (androidTest) listOf("DebugAndroidTest") else emptyList()
                 listOf("app", "lib").flatMap { m -> components.map { ":$m:detekt$it" } }
             }
         assertEquals((android + listOf(":jvm:detektMain", ":jvm:detektTest")).sorted(), result.detektTasks().sorted())
         val compiled = result.compileTasks()
-        assertTrue(":app:compileDebugKotlin" in compiled && ":lib:compileDebugUnitTestKotlin" in compiled, "got: $compiled")
+        assertTrue(
+            ":app:compileDebugKotlin" in compiled && ":lib:compileDebugUnitTestKotlin" in compiled,
+            "got: $compiled",
+        )
         assertTrue(compiled.none { "Release" in it }, "no release variant may compile, got: $compiled")
         assertEquals(androidTest, ":lib:compileDebugAndroidTestKotlin" in compiled, "got: $compiled")
     }
@@ -212,7 +220,9 @@ class TypeResolutionTest {
         val result = projectDir.runTasks("pipelineCheck")
 
         // Preprod has no unit test component: AGP 9 only builds them for the test build type.
-        val expected = listOf(":lib:detektDebug", ":lib:detektDebugUnitTest") + if (ignored) emptyList() else listOf(":lib:detektPreprod")
+        val expected =
+            listOf(":lib:detektDebug", ":lib:detektDebugUnitTest") +
+                if (ignored) emptyList() else listOf(":lib:detektPreprod")
         assertEquals(if (engine == 1) listOf(":lib:detekt") else expected.sorted(), result.variantDetektTasks("lib"))
         assertEquals(!ignored, ":lib:compilePreprodKotlin" in result.compileTasks(), "got: ${result.compileTasks()}")
     }
@@ -278,7 +288,16 @@ class TypeResolutionTest {
 
         val result = projectDir.runTasks("pipelineCheck")
 
-        assertEquals(if (engine == 1) listOf(":lib:detekt") else listOf(":lib:detektDebug"), result.variantDetektTasks("lib"))
+        assertEquals(
+            if (engine ==
+                1
+            ) {
+                listOf(":lib:detekt")
+            } else {
+                listOf(":lib:detektDebug")
+            },
+            result.variantDetektTasks("lib"),
+        )
         assertTrue(result.compileTasks().none { "UnitTest" in it }, "got: ${result.compileTasks()}")
     }
 
@@ -296,7 +315,11 @@ class TypeResolutionTest {
                     module(
                         "mainuser",
                         ModuleType.AndroidApp,
-                        sources = mapOf("src/main/kotlin/sample/Main.kt" to DBG_USAGE, "src/main/kotlin/sample/Ctx.kt" to CONTEXT_USAGE),
+                        sources =
+                            mapOf(
+                                "src/main/kotlin/sample/Main.kt" to DBG_USAGE,
+                                "src/main/kotlin/sample/Ctx.kt" to CONTEXT_USAGE,
+                            ),
                         extraBuildContent = "dependencies { implementation project(':dep') }",
                     ),
                     module(
@@ -306,7 +329,11 @@ class TypeResolutionTest {
                         extraBuildContent = "dependencies { testImplementation project(':dep') }",
                     ),
                 ).map { it.copy(detektKotlinConfigContent = UNNECESSARY_SAFE_CALL_CONFIG) },
-            qualityConfig = QualityConfig(detekt = DetektBlock(typeResolution = typeResolution), extraExtensionContent = XML),
+            qualityConfig =
+                QualityConfig(
+                    detekt = DetektBlock(typeResolution = typeResolution),
+                    extraExtensionContent = XML,
+                ),
             detektEngine = engine,
         )
         projectDir.initGit()
@@ -336,7 +363,11 @@ class TypeResolutionTest {
                         name = "app",
                         type = ModuleType.AndroidApp,
                         detektKotlinConfigContent = UNNECESSARY_SAFE_CALL_CONFIG,
-                        kotlinSources = mapOf("src/main/kotlin/sample/Main.kt" to "package sample\n\nimport sel.v\n\nfun f() = v()?.length\n"),
+                        kotlinSources =
+                            mapOf(
+                                "src/main/kotlin/sample/Main.kt" to
+                                    "package sample\n\nimport sel.v\n\nfun f() = v()?.length\n",
+                            ),
                         extraBuildContent =
                             """
                             |android {
@@ -392,11 +423,18 @@ class TypeResolutionTest {
                         compileSdk = 35,
                         applyKotlinAndroidPlugin = true,
                         kotlinSources =
-                            mapOf("src/main/kotlin/sample/Main.kt" to DBG_USAGE, "src/main/kotlin/sample/Ctx.kt" to CONTEXT_USAGE),
+                            mapOf(
+                                "src/main/kotlin/sample/Main.kt" to DBG_USAGE,
+                                "src/main/kotlin/sample/Ctx.kt" to CONTEXT_USAGE,
+                            ),
                         extraBuildContent = "dependencies { implementation project(':dep') }",
                     ),
                 ).map { it.copy(detektKotlinConfigContent = UNNECESSARY_SAFE_CALL_CONFIG) },
-            qualityConfig = QualityConfig(detekt = DetektBlock(typeResolution = typeResolution), extraExtensionContent = XML),
+            qualityConfig =
+                QualityConfig(
+                    detekt = DetektBlock(typeResolution = typeResolution),
+                    extraExtensionContent = XML,
+                ),
             detektEngine = engine,
         )
         projectDir.initGit()
@@ -422,7 +460,7 @@ class TypeResolutionTest {
 
     @ParameterizedTest(name = "engine {0}, legacy AGP {1}")
     @CsvSource("1, false", "1, true", "2, false", "2, true")
-    fun `with type resolution on and every build type ignored pipelineCheck fails`(
+    fun `with type resolution on and every build type ignored the plain task runs with a warning`(
         engine: Int,
         legacyAgp: Boolean,
     ) {
@@ -435,11 +473,14 @@ class TypeResolutionTest {
                         type = ModuleType.AndroidApp,
                         compileSdk = 35,
                         applyKotlinAndroidPlugin = legacyAgp,
-                        kotlinSources = mapOf("src/main/kotlin/ru/kode/test/Main.kt" to Sources.CLEAN_TWO_SPACE),
+                        kotlinSources = mapOf("src/main/kotlin/sample/Main.kt" to EMPTY_FUNCTION_SOURCE),
                     ),
                 ),
             qualityConfig =
-                QualityConfig(detekt = DetektBlock(typeResolution = true, ignoredBuildTypes = listOf("debug", "release"))),
+                QualityConfig(
+                    detekt = DetektBlock(typeResolution = true, ignoredBuildTypes = listOf("debug", "release")),
+                    extraExtensionContent = XML,
+                ),
             detektEngine = engine,
         )
         projectDir.initGit()
@@ -448,18 +489,67 @@ class TypeResolutionTest {
             if (legacyAgp) {
                 projectDir.runTasks(
                     "pipelineCheck",
+                    "--continue",
                     agpClasspath = resolveRequiredAgpJars(LEGACY_AGP_VERSION),
                     gradleVersion = LEGACY_GRADLE_VERSION,
                     expectFailure = true,
                 )
             } else {
-                projectDir.runTasks("pipelineCheck", expectFailure = true)
+                projectDir.runTasks("pipelineCheck", "--continue", expectFailure = true)
             }
 
-        assertTrue("TYPE RESOLUTION: NOTHING TO ANALYSE" in result.output, result.output)
+        assertEquals(listOf(":app:detekt"), result.variantDetektTasks("app"))
+        assertEquals(1, projectDir.findings("app", "EmptyFunctionBlock"))
+        assertTrue("TYPE RESOLUTION: EVERY VARIANT IGNORED" in result.output, result.output)
         assertTrue("Project ':app'" in result.output, result.output)
         assertTrue(Regex("ignoredBuildTypes: +\\[debug, release]").containsMatchIn(result.output), result.output)
-        assertTrue(Regex("ignoredTypeResolutionVariants: +\\[AndroidTest]").containsMatchIn(result.output), result.output)
+        assertTrue(
+            Regex("ignoredTypeResolutionVariants: +\\[AndroidTest]").containsMatchIn(result.output),
+            result.output,
+        )
+    }
+
+    // An app with a benchmark build type next to a module that has only that variant.
+    @ParameterizedTest(name = "engine {0}")
+    @ValueSource(ints = [1, 2])
+    fun `with type resolution on a module whose only build type is ignored runs the plain task`(engine: Int) {
+        val projectDir = projectDir(engine)
+        projectDir.createQualityProject(
+            modules =
+                listOf(
+                    module("app", ModuleType.AndroidApp).copy(buildTypes = listOf("benchmark")),
+                    module(
+                        "benchmark",
+                        ModuleType.AndroidLib,
+                        extraBuildContent =
+                            """
+                            |androidComponents {
+                            |    beforeVariants(selector().all()) { it.enable = it.buildType == "benchmark" }
+                            |}
+                            """.trimMargin(),
+                    ).copy(buildTypes = listOf("benchmark")),
+                ),
+            qualityConfig =
+                QualityConfig(
+                    detekt = DetektBlock(typeResolution = true),
+                    extraExtensionContent = "detekt.ignoredBuildTypes.addAll(\"benchmark\")",
+                ),
+            detektEngine = engine,
+        )
+        projectDir.initGit()
+        val arguments = listOf("--configuration-cache")
+
+        val first = projectDir.runTasks("clean", "pipelineCheck", arguments = arguments)
+        val second = projectDir.runTasks("clean", "pipelineCheck", arguments = arguments)
+
+        val app = if (engine == 1) listOf(":app:detekt") else listOf(":app:detektDebug", ":app:detektDebugUnitTest")
+        assertEquals(app, first.variantDetektTasks("app"))
+        assertEquals(listOf(":benchmark:detekt"), first.variantDetektTasks("benchmark"))
+        assertTrue(first.compileTasks().none { "Benchmark" in it }, "got: ${first.compileTasks()}")
+        assertEquals(1, Regex("TYPE RESOLUTION: EVERY VARIANT IGNORED").findAll(first.output).count(), first.output)
+        assertTrue("Project ':benchmark'" in first.output, first.output)
+        assertTrue("Reusing configuration cache" in second.output, second.output)
+        assertEquals(listOf(":benchmark:detekt"), second.variantDetektTasks("benchmark"))
     }
 
     @ParameterizedTest(name = "engine {0}, legacy AGP {1}")
@@ -533,8 +623,17 @@ class TypeResolutionTest {
             modules =
                 listOf(
                     DEP,
-                    module("app", ModuleType.AndroidApp, mapOf("src/main/kotlin/sample/Main.kt" to DBG_USAGE), DEP_BUILD),
-                    module("jvm", sources = mapOf("src/main/kotlin/sample/Main.kt" to DBG_USAGE), extraBuildContent = DEP_BUILD),
+                    module(
+                        "app",
+                        ModuleType.AndroidApp,
+                        mapOf("src/main/kotlin/sample/Main.kt" to DBG_USAGE),
+                        DEP_BUILD,
+                    ),
+                    module(
+                        "jvm",
+                        sources = mapOf("src/main/kotlin/sample/Main.kt" to DBG_USAGE),
+                        extraBuildContent = DEP_BUILD,
+                    ),
                 ).map { it.copy(detektKotlinConfigContent = UNNECESSARY_SAFE_CALL_CONFIG) },
             qualityConfig = QualityConfig(detekt = DetektBlock(typeResolution = true), extraExtensionContent = XML),
             detektEngine = engine,
@@ -543,7 +642,14 @@ class TypeResolutionTest {
         val arguments = listOf("--configuration-cache")
 
         projectDir.runTasks("clean", "pipelineCheck", "--continue", arguments = arguments, expectFailure = true)
-        val second = projectDir.runTasks("clean", "pipelineCheck", "--continue", arguments = arguments, expectFailure = true)
+        val second =
+            projectDir.runTasks(
+                "clean",
+                "pipelineCheck",
+                "--continue",
+                arguments = arguments,
+                expectFailure = true,
+            )
 
         assertTrue("Reusing configuration cache" in second.output, second.output)
         assertEquals(1, projectDir.findings("app", "UnnecessarySafeCall"))
@@ -569,7 +675,13 @@ class TypeResolutionTest {
         projectDir.runTasks(":app:detektBaseline", ":jvm:detektBaseline")
         val result = projectDir.runTasks("pipelineCheck")
 
-        assertTrue(File(projectDir, "app/detekt-baseline.xml").exists() && File(projectDir, "jvm/detekt-baseline.xml").exists())
+        assertTrue(
+            File(
+                projectDir,
+                "app/detekt-baseline.xml",
+            ).exists() &&
+                File(projectDir, "jvm/detekt-baseline.xml").exists(),
+        )
         assertTrue(":jvm:detektMain" in result.detektTasks(), "got: ${result.detektTasks()}")
     }
 
@@ -600,7 +712,11 @@ class TypeResolutionTest {
             )
         createQualityProject(
             modules = listOf(module("app", ModuleType.AndroidApp, sources), module("jvm", sources = sources)),
-            qualityConfig = QualityConfig(detekt = DetektBlock(typeResolution = typeResolution), extraExtensionContent = XML),
+            qualityConfig =
+                QualityConfig(
+                    detekt = DetektBlock(typeResolution = typeResolution),
+                    extraExtensionContent = XML,
+                ),
             detektEngine = engine,
         )
         initGit()
@@ -654,9 +770,14 @@ private fun BuildResult.detektTasks() = tasks.map { it.path }.filter { ":detekt"
 
 /** [module]'s detekt tasks that analyse, without the `detektMain`/`detektTest` lifecycle tasks. */
 private fun BuildResult.variantDetektTasks(module: String) =
-    detektTasks().filter { it.startsWith(":$module:") && it !in listOf(":$module:detektMain", ":$module:detektTest") }.sorted()
+    detektTasks().filter {
+        it.startsWith(":$module:") && it !in listOf(":$module:detektMain", ":$module:detektTest")
+    }.sorted()
 
-private fun BuildResult.compileTasks() = tasks.map { it.path }.filter { Regex(":compile\\w*Kotlin$").containsMatchIn(it) }
+private fun BuildResult.compileTasks() =
+    tasks.map {
+        it.path
+    }.filter { Regex(":compile\\w*Kotlin$").containsMatchIn(it) }
 
 /** How many times [rule] is reported across all of [module]'s detekt XML reports. */
 internal fun File.findings(

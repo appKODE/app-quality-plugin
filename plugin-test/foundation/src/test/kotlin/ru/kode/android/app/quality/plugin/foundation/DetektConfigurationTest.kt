@@ -7,6 +7,8 @@ import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.ValueSource
 import ru.kode.android.app.quality.plugin.foundation.messages.missingKodeRuleSetDependencyMessage
 import ru.kode.android.app.quality.plugin.test.utils.CUSTOM_RULES_JAR_PATH
 import ru.kode.android.app.quality.plugin.test.utils.DependencySlot
@@ -844,5 +846,73 @@ class DetektConfigurationTest {
             result.output.contains("detekt "),
             "plain java module must not get detekt tasks",
         )
+    }
+
+    @ParameterizedTest(name = "engine {0}")
+    @ValueSource(ints = [1, 2])
+    fun `additionalConfigs merge on top of the bundled config on plain and type-resolved tasks`(engine: Int) {
+        projectDir.createQualityProject(
+            modules =
+                listOf(
+                    ModuleSpec(
+                        name = "a",
+                        type = ModuleType.KotlinJvm,
+                        kotlinSources = mapOf("src/main/kotlin/ru/kode/test/Long.kt" to Sources.LONG_LINE_80),
+                    ),
+                ),
+            qualityConfig =
+                QualityConfig(
+                    detekt = DetektBlock(typeResolution = true),
+                    extraExtensionContent = "detekt.additionalConfigs.from(file('config/extra-detekt.yml'))",
+                ),
+            extraRootFiles = mapOf("config/extra-detekt.yml" to MAX_LINE_60_ANY_ENGINE),
+            detektEngine = engine,
+        )
+
+        listOf(":a:detekt", ":a:detektMain").forEach { task ->
+            val result = projectDir.runTaskWithFail(task)
+
+            assertEquals(TaskOutcome.FAILED, result.task(task)?.outcome)
+            assertTrue(result.output.contains("MaxLineLength"), "expected $task to apply the additional config")
+        }
+    }
+
+    @ParameterizedTest(name = "engine {0}")
+    @ValueSource(ints = [1, 2])
+    fun `sources generated under the module build directory are excluded from type-resolved detekt`(engine: Int) {
+        projectDir.createQualityProject(
+            modules =
+                listOf(
+                    ModuleSpec(
+                        name = "a",
+                        type = ModuleType.KotlinJvm,
+                        detektKotlinConfigContent = MAX_LINE_60_ANY_ENGINE,
+                        kotlinSources = mapOf("src/main/kotlin/ru/kode/test/Main.kt" to Sources.CLEAN_TWO_SPACE),
+                        extraBuildContent = "sourceSets.main.kotlin.srcDir('build/openapi')",
+                    ),
+                ),
+            qualityConfig = QualityConfig(detekt = DetektBlock(typeResolution = true)),
+            detektEngine = engine,
+        )
+        // A generator writing outside build/generated, as an OpenAPI client into build/openapi.
+        File(projectDir, "a/build/openapi/ru/kode/test/Generated.kt").apply {
+            parentFile.mkdirs()
+            writeText(Sources.LONG_LINE_80)
+        }
+
+        val result = projectDir.runTask(":a:detektMain")
+
+        assertEquals(TaskOutcome.SUCCESS, result.task(":a:detektMain")?.outcome)
+    }
+
+    private companion object {
+        // MaxLineLength 60 without detekt 1's `build:` section, which detekt 2 rejects.
+        val MAX_LINE_60_ANY_ENGINE =
+            """
+            |style:
+            |  MaxLineLength:
+            |    active: true
+            |    maxLineLength: 60
+            """.trimMargin()
     }
 }

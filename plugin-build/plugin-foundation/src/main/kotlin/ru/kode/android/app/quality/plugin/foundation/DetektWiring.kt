@@ -259,6 +259,11 @@ internal fun excludeGeneratedSources(task: SourceTask) {
     // sits inside build/generated/..., so a root-relative path never contains that segment
     // again. `exclude(Spec)` is lazy and additive, evaluated against whatever `source` ends
     // up being at execution time, and matches on the absolute file path instead.
+    // Anything under the module's build directory is generated too, wherever a generator writes
+    // it (e.g. an OpenAPI client in build/openapi).
     val generatedPathMarker = "${File.separator}build${File.separator}generated${File.separator}"
-    task.exclude { fileTreeElement -> fileTreeElement.file.path.contains(generatedPathMarker) }
+    val buildDir = task.project.layout.buildDirectory.get().asFile
+    task.exclude { fileTreeElement ->
+        fileTreeElement.file.path.contains(generatedPathMarker) || fileTreeElement.file.startsWith(buildDir)
+    }
 }

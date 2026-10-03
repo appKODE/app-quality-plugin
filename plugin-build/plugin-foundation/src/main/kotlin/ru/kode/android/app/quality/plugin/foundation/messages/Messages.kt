@@ -283,10 +283,11 @@ fun missingDetektConfigFileMessage(
     """.trimMargin()
 
 /**
- * Error message shown when `detekt.typeResolution` is on but `detekt.ignoredBuildTypes` and
- * `detekt.ignoredTypeResolutionVariants` leave an Android module nothing to analyse.
+ * Warning shown when `detekt.typeResolution` is on but `detekt.ignoredBuildTypes` and
+ * `detekt.ignoredTypeResolutionVariants` leave an Android module no component to analyse:
+ * its plain detekt task runs without type resolution.
  */
-fun typeResolutionNothingToAnalyseMessage(
+fun typeResolutionFallbackMessage(
     projectPath: String,
     variants: Map<String, String>,
     ignoredBuildTypes: List<String>,
@@ -297,11 +298,12 @@ fun typeResolutionNothingToAnalyseMessage(
     return """
         |
         |============================================================
-        |          TYPE RESOLUTION: NOTHING TO ANALYSE
+        |      TYPE RESOLUTION: EVERY VARIANT IGNORED
         |============================================================
         | Project '$projectPath' has no variant with a Kotlin
-        | compilation and a detekt task to analyse with
-        | detekt.typeResolution.
+        | compilation and a detekt task left to analyse with
+        | detekt.typeResolution; detekt runs on it without type
+        | resolution (the plain 'detekt' task).
         |
         |   variants:                      $variantList
         |   ignoredBuildTypes:             $ignoredBuildTypes
@@ -311,13 +313,6 @@ fun typeResolutionNothingToAnalyseMessage(
         | Both lists match by substring, ignoring case. Kept
         | components with no task may be skipped by detekt's own
         | ignoredVariants/ignoredFlavors.
-        |
-        | FIX — any one of:
-        |  1. Remove an entry from detekt.ignoredBuildTypes or
-        |     detekt.ignoredTypeResolutionVariants
-        |  2. Remove the variant from detekt's own ignoredVariants/
-        |     ignoredFlavors
-        |  3. Set detekt.typeResolution = false
         |============================================================
         """.trimMargin()
 }

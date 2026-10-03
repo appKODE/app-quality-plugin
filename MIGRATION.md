@@ -3,6 +3,14 @@
 Upgrade notes per release. Sections list breaking changes first, then behavior changes and
 new opt-in capabilities.
 
+## 3.2.2 (fallback instead of failure) — migrating from 3.2.1
+
+No action needed. A module with every type-resolution component ignored now runs the plain
+`detekt` task with a warning instead of failing the build. Manual excludes of generated code under
+`build/` (e.g. `exclude { it.file.path.contains("/build/openapi/") }`) can be dropped. App-specific
+rule overrides that used to need a full copy of the bundled config can move to a small file in
+`detekt.additionalConfigs`.
+
 ## 3.2.1 (`addAll` keeps the defaults) — migrating from 3.2.0
 
 `detekt.ignoredBuildTypes.addAll(...)` and `detekt.ignoredTypeResolutionVariants.addAll(...)` now

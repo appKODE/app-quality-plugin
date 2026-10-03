@@ -5,6 +5,25 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.2.2] - 2026-10-03
+
+### Added
+
+- `detekt.additionalConfigs`: extra detekt config files merged last on every detekt task, e.g. to
+  add app-specific `ForbiddenImport` entries on top of the bundled config.
+
+### Fixed
+
+- Sources under a module's build directory outside `build/generated` (e.g. an OpenAPI client in
+  `build/openapi` added to a source set) are no longer analysed by type-resolved detekt tasks.
+
+### Changed
+
+- With `detekt.typeResolution` on, an Android module whose every component is skipped by
+  `detekt.ignoredBuildTypes`/`detekt.ignoredTypeResolutionVariants` (e.g. a benchmark module with
+  only the ignored `benchmark` variant) no longer fails the build: it runs the plain `detekt` task
+  without type resolution and logs a warning.
+
 ## [3.2.1] - 2026-09-30
 
 ### Fixed

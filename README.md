@@ -82,7 +82,7 @@ In root `build.gradle.kts`:
 
 ```kotlin
 plugins {
-    id("ru.kode.android.app-quality.foundation") version "3.2.1"
+    id("ru.kode.android.app-quality.foundation") version "3.2.2"
 }
 ```
 
@@ -113,7 +113,7 @@ put its Gradle plugin on the classpath in the root build and select engine 2:
 // root build.gradle.kts
 plugins {
     id("dev.detekt") version "2.0.0-alpha.6" apply false
-    id("ru.kode.android.app-quality.foundation") version "3.2.1"
+    id("ru.kode.android.app-quality.foundation") version "3.2.2"
 }
 ```
 
@@ -155,7 +155,8 @@ See [CHANGELOG.md](CHANGELOG.md) "Upgrading from 2.x".
 - Android components are `<variant>`, `<variant>UnitTest` and `<variant>AndroidTest`. A component
   is skipped when its variant name or build type contains a `detekt.ignoredBuildTypes` entry, or
   its name contains a `detekt.ignoredTypeResolutionVariants` entry (default `["AndroidTest"]`).
-  Both match by substring, ignoring case. With nothing left, the build fails. Substrings match
+  Both match by substring, ignoring case. With nothing left, the module runs the plain
+  `detekt` task without type resolution and warns. Substrings match
   flavor names too: the default `demo`, `internal` and `external` also skip a `demo` flavor.
   `--info` logs the analysed and skipped components per module.
 - By default that is `detektDebug` and `detektDebugUnitTest`. `releaseGoogle` is skipped by
@@ -166,7 +167,9 @@ See [CHANGELOG.md](CHANGELOG.md) "Upgrading from 2.x".
 - Running `./gradlew :module:detekt` by hand is always without type resolution, except for engine 1
   on AGP 9 built-in Kotlin.
 - `detekt.sources` applies only to the plain `detekt` task. detekt's own tasks analyse their
-  compilation's source dirs; exclude generated code with rule-set `excludes:` patterns in the detekt config.
+  compilation's source dirs, minus anything under the module's build directory (generated code
+  such as KSP output or an OpenAPI client in `build/openapi`); exclude other generated code with
+  rule-set `excludes:` patterns in the detekt config.
 
 ## Quick Start
 
@@ -282,6 +285,7 @@ appQualityFoundation {
 | `detekt.typeResolution` | `false` (see [Type resolution](#type-resolution)) |
 | `detekt.ignoredTypeResolutionVariants` | `["AndroidTest"]` (Android components skipped by type resolution, by substring) |
 | `detekt.buildUponDefaultConfig` | `false` |
+| `detekt.additionalConfigs` | empty; extra detekt config files merged after the resolved per-platform configs in every module and task, so their values win (lists such as `ForbiddenImport.imports` replace the bundled ones) |
 | `detekt.baseline` | unset (no baseline); when set, resolved per-subproject by filename — safe to configure once regardless of where the plugin is applied |
 | `detekt.xmlReportEnabled` | `false`; engine 2 has no `xml` report, so this enables detekt 2's `checkstyle` report (the same checkstyle XML, still `build/reports/detekt/<task>.xml`) |
 | `detekt.sarifReportEnabled` | `false` |

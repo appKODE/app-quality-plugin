@@ -4,7 +4,6 @@ import io.gitlab.arturbosch.detekt.Detekt
 import io.gitlab.arturbosch.detekt.DetektCreateBaselineTask
 import io.gitlab.arturbosch.detekt.DetektPlugin
 import io.gitlab.arturbosch.detekt.extensions.DetektExtension
-import org.gradle.api.GradleException
 import org.gradle.api.Project
 import org.gradle.api.Task
 import org.gradle.api.file.RegularFile
@@ -18,7 +17,7 @@ import ru.kode.android.app.quality.plugin.foundation.configureDetektSources
 import ru.kode.android.app.quality.plugin.foundation.excludeGeneratedSources
 import ru.kode.android.app.quality.plugin.foundation.extension.AppQualityFoundationExtension
 import ru.kode.android.app.quality.plugin.foundation.messages.typeResolutionComponentsMessage
-import ru.kode.android.app.quality.plugin.foundation.messages.typeResolutionNothingToAnalyseMessage
+import ru.kode.android.app.quality.plugin.foundation.messages.typeResolutionFallbackMessage
 import ru.kode.android.app.quality.plugin.foundation.recordVariants
 import ru.kode.android.app.quality.plugin.foundation.typeResolutionComponents
 import ru.kode.android.gradle.commons.logger.LoggerService
@@ -64,11 +63,14 @@ internal object Detekt1Engine : DetektEngine {
             task.usesService(loggerProvider)
             task.jvmTarget = extension.jvmTarget.get().target
             task.debug.set(extension.verboseLogging)
+            task.config.from(detektConfig.additionalConfigs)
         }
         project.tasks.withType(Detekt::class.java).configureEach { task ->
             task.usesService(loggerProvider)
             task.debug = extension.verboseLogging.get()
             excludeGeneratedSources(task)
+            // After detekt seeds the task config from the extension, so these merge last.
+            task.config.from(detektConfig.additionalConfigs)
             task.reports {
                 it.xml.required.set(detektConfig.xmlReportEnabled)
                 it.html.required.set(false)
@@ -101,16 +103,15 @@ internal object Detekt1Engine : DetektEngine {
                 val skipped = typeResolutionComponents(variants, emptyList(), emptyList()) - selected.toSet()
                 project.logger.info(typeResolutionComponentsMessage(project.path, selected, skipped))
                 if (compilations.isEmpty()) {
-                    // Fail on run, not on configuration, so `./gradlew tasks` still works.
-                    val message =
-                        typeResolutionNothingToAnalyseMessage(
+                    project.logger.warn(
+                        typeResolutionFallbackMessage(
                             project.path,
                             variants.toMap(),
                             ignoredBuildTypes,
                             ignoredComponents,
                             components,
-                        )
-                    task.doFirst { throw GradleException(message) }
+                        ),
+                    )
                     return@configure
                 }
                 compilations.forEach { compilation ->
