@@ -169,7 +169,12 @@ See [CHANGELOG.md](CHANGELOG.md) "Upgrading from 2.x".
 - `detekt.sources` applies only to the plain `detekt` task. detekt's own tasks analyse their
   compilation's source dirs, minus anything under the module's build directory (generated code
   such as KSP output or an OpenAPI client in `build/openapi`); exclude other generated code with
-  rule-set `excludes:` patterns in the detekt config.
+  rule-set `excludes:` patterns in the detekt config. Types from that generated code still
+  resolve: the module's own compiled Kotlin classes are on the classpath.
+- Members added by Kotlin compiler plugins (`@Serializable`'s `serializer()`, `@Parcelize`'s
+  `Parcelable` implementation) stay unresolved: detekt cannot load compiler plugins. Such modules
+  log "There were N compiler errors found during analysis"; rules that need those types may miss
+  findings there.
 
 ## Quick Start
 

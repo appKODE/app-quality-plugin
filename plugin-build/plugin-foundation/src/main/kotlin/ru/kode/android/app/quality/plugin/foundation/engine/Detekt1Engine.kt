@@ -18,6 +18,7 @@ import ru.kode.android.app.quality.plugin.foundation.excludeGeneratedSources
 import ru.kode.android.app.quality.plugin.foundation.extension.AppQualityFoundationExtension
 import ru.kode.android.app.quality.plugin.foundation.messages.typeResolutionComponentsMessage
 import ru.kode.android.app.quality.plugin.foundation.messages.typeResolutionFallbackMessage
+import ru.kode.android.app.quality.plugin.foundation.ownClasses
 import ru.kode.android.app.quality.plugin.foundation.recordVariants
 import ru.kode.android.app.quality.plugin.foundation.typeResolutionComponents
 import ru.kode.android.gradle.commons.logger.LoggerService
@@ -126,6 +127,7 @@ internal object Detekt1Engine : DetektEngine {
                 compilations.forEach { compilation ->
                     task.classpath.from(
                         compilation.output.classesDirs,
+                        compilation.ownClasses(),
                         compilation.compileTaskProvider.map { (it as KotlinCompileTool).libraries },
                     )
                 }
