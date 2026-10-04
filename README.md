@@ -82,7 +82,7 @@ In root `build.gradle.kts`:
 
 ```kotlin
 plugins {
-    id("ru.kode.android.app-quality.foundation") version "3.2.2"
+    id("ru.kode.android.app-quality.foundation") version "3.2.3"
 }
 ```
 
@@ -113,7 +113,7 @@ put its Gradle plugin on the classpath in the root build and select engine 2:
 // root build.gradle.kts
 plugins {
     id("dev.detekt") version "2.0.0-alpha.6" apply false
-    id("ru.kode.android.app-quality.foundation") version "3.2.2"
+    id("ru.kode.android.app-quality.foundation") version "3.2.3"
 }
 ```
 
@@ -285,7 +285,7 @@ appQualityFoundation {
 | `detekt.typeResolution` | `false` (see [Type resolution](#type-resolution)) |
 | `detekt.ignoredTypeResolutionVariants` | `["AndroidTest"]` (Android components skipped by type resolution, by substring) |
 | `detekt.buildUponDefaultConfig` | `false` |
-| `detekt.additionalConfigs` | empty; extra detekt config files merged after the resolved per-platform configs in every module and task, so their values win (lists such as `ForbiddenImport.imports` replace the bundled ones) |
+| `detekt.additionalConfigs` | empty; extra detekt config files merged after the resolved per-platform configs in every module and task, so their values win (lists such as `ForbiddenImport.forbiddenImports`, `imports` on detekt 1, replace the bundled ones) |
 | `detekt.baseline` | unset (no baseline); when set, resolved per-subproject by filename — safe to configure once regardless of where the plugin is applied |
 | `detekt.xmlReportEnabled` | `false`; engine 2 has no `xml` report, so this enables detekt 2's `checkstyle` report (the same checkstyle XML, still `build/reports/detekt/<task>.xml`) |
 | `detekt.sarifReportEnabled` | `false` |

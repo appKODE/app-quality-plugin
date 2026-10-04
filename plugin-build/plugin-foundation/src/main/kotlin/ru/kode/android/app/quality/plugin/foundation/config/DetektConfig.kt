@@ -9,7 +9,7 @@ import org.gradle.api.model.ObjectFactory
 import org.gradle.api.provider.ListProperty
 import org.gradle.api.provider.Property
 import org.gradle.api.tasks.Nested
-import ru.kode.android.gradle.commons.util.configureGroovy
+import ru.kode.android.app.quality.plugin.foundation.utils.configureDsl
 import javax.inject.Inject
 
 abstract class DetektConfig
@@ -29,7 +29,7 @@ abstract class DetektConfig
             @DelegatesTo(value = PlatformDetektConfig::class, strategy = Closure.DELEGATE_FIRST)
             closure: Closure<in PlatformDetektConfig>,
         ) {
-            configureGroovy(closure, kotlin)
+            configureDsl(closure, kotlin)
         }
 
         @get:Nested
@@ -44,7 +44,7 @@ abstract class DetektConfig
             @DelegatesTo(value = PlatformDetektConfig::class, strategy = Closure.DELEGATE_FIRST)
             closure: Closure<in PlatformDetektConfig>,
         ) {
-            configureGroovy(closure, android)
+            configureDsl(closure, android)
         }
 
         @get:Nested
@@ -59,7 +59,7 @@ abstract class DetektConfig
             @DelegatesTo(value = PlatformDetektConfig::class, strategy = Closure.DELEGATE_FIRST)
             closure: Closure<in PlatformDetektConfig>,
         ) {
-            configureGroovy(closure, compose)
+            configureDsl(closure, compose)
         }
 
         /**
@@ -87,7 +87,7 @@ abstract class DetektConfig
             @DelegatesTo(value = SourcePatternsConfig::class, strategy = Closure.DELEGATE_FIRST)
             closure: Closure<in SourcePatternsConfig>,
         ) {
-            configureGroovy(closure, sources)
+            configureDsl(closure, sources)
         }
 
         /**
@@ -128,7 +128,8 @@ abstract class DetektConfig
         /**
          * Extra detekt config files applied on top of the resolved per-platform configs, in every
          * module, on every detekt task: detekt merges them last, so their values win (a list such
-         * as `ForbiddenImport.imports` replaces the bundled one, so repeat the entries to keep).
+         * as `ForbiddenImport.forbiddenImports`, `imports` on detekt 1, replaces the bundled one,
+         * so repeat the entries to keep).
          * Empty by default, e.g. `additionalConfigs.from("config/detekt-extra.yml")`.
          */
         val additionalConfigs: ConfigurableFileCollection = objectFactory.fileCollection()
