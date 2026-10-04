@@ -5,7 +5,7 @@ import groovy.lang.DelegatesTo
 import org.gradle.api.Action
 import org.gradle.api.file.RegularFileProperty
 import org.gradle.api.model.ObjectFactory
-import ru.kode.android.gradle.commons.util.configureGroovy
+import ru.kode.android.app.quality.plugin.foundation.utils.configureDsl
 import javax.inject.Inject
 
 abstract class KtlintConfig
@@ -31,7 +31,7 @@ abstract class KtlintConfig
             @DelegatesTo(value = ExternalDependencyConfig::class, strategy = Closure.DELEGATE_FIRST)
             closure: Closure<in ExternalDependencyConfig>,
         ) {
-            configureGroovy(closure, cli)
+            configureDsl(closure, cli)
         }
 
         /**
@@ -49,6 +49,6 @@ abstract class KtlintConfig
             @DelegatesTo(value = SourcePatternsConfig::class, strategy = Closure.DELEGATE_FIRST)
             closure: Closure<in SourcePatternsConfig>,
         ) {
-            configureGroovy(closure, sources)
+            configureDsl(closure, sources)
         }
     }

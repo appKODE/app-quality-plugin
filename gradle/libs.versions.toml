@@ -1,5 +1,5 @@
 [versions]
-appQualityPlugin = "3.2.2"
+appQualityPlugin = "3.2.3"
 kotlin = "2.4.20"
 agp = "9.4.1"
 detekt = "1.23.8"

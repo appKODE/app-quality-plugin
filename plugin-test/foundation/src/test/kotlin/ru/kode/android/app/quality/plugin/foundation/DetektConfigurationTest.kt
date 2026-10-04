@@ -129,6 +129,42 @@ class DetektConfigurationTest {
         assertTrue(result.output.contains("MaxLineLength"), "expected violation from the override config")
     }
 
+    // A bare `compose { }` inside a Groovy closure resolves to the closure's own Closure.compose
+    // before the delegate, so the block used to be dropped silently and the bundled config ran.
+    @ParameterizedTest(name = "kotlinDsl={0}")
+    @ValueSource(booleans = [false, true])
+    fun `projectConfig set in a nested compose block applies`(useKotlinDsl: Boolean) {
+        projectDir.createQualityProject(
+            modules =
+                listOf(
+                    ModuleSpec(
+                        name = "a",
+                        type = ModuleType.KotlinJvm,
+                        applyComposePlugin = true,
+                        kotlinSources = mapOf("src/main/kotlin/ru/kode/test/Long.kt" to Sources.LONG_LINE_80),
+                    ),
+                ),
+            qualityConfig =
+                QualityConfig(
+                    extraExtensionContent =
+                        """
+                        detekt {
+                          compose {
+                            projectConfig.set(rootProject.layout.projectDirectory.file("config/strict-compose.yml"))
+                          }
+                        }
+                        """,
+                ),
+            extraRootFiles = mapOf("config/strict-compose.yml" to Configs.DETEKT_MAX_LINE_60),
+            useKotlinDsl = useKotlinDsl,
+        )
+
+        val result = projectDir.runTaskWithFail(":a:detekt")
+
+        assertEquals(TaskOutcome.FAILED, result.task(":a:detekt")?.outcome)
+        assertTrue(result.output.contains("MaxLineLength"), "expected violation from the compose projectConfig")
+    }
+
     @Test
     fun `no rules jar configured does not break the build`() {
         projectDir.createQualityProject(

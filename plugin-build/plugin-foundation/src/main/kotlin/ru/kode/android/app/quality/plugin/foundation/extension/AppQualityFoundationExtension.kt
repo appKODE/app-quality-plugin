@@ -11,7 +11,7 @@ import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import ru.kode.android.app.quality.plugin.foundation.config.AndroidLintConfig
 import ru.kode.android.app.quality.plugin.foundation.config.DetektConfig
 import ru.kode.android.app.quality.plugin.foundation.config.KtlintConfig
-import ru.kode.android.gradle.commons.util.configureGroovy
+import ru.kode.android.app.quality.plugin.foundation.utils.configureDsl
 import javax.inject.Inject
 
 @Suppress("UnnecessaryAbstractClass")
@@ -59,7 +59,7 @@ abstract class AppQualityFoundationExtension
             @DelegatesTo(value = KtlintConfig::class, strategy = Closure.DELEGATE_FIRST)
             closure: Closure<in KtlintConfig>,
         ) {
-            configureGroovy(closure, ktlint)
+            configureDsl(closure, ktlint)
         }
 
         @get:Nested
@@ -74,7 +74,7 @@ abstract class AppQualityFoundationExtension
             @DelegatesTo(value = DetektConfig::class, strategy = Closure.DELEGATE_FIRST)
             closure: Closure<in DetektConfig>,
         ) {
-            configureGroovy(closure, detekt)
+            configureDsl(closure, detekt)
         }
 
         @get:Nested
@@ -89,6 +89,6 @@ abstract class AppQualityFoundationExtension
             @DelegatesTo(value = AndroidLintConfig::class, strategy = Closure.DELEGATE_FIRST)
             closure: Closure<in AndroidLintConfig>,
         ) {
-            configureGroovy(closure, androidLint)
+            configureDsl(closure, androidLint)
         }
     }

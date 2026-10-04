@@ -3,6 +3,12 @@
 Upgrade notes per release. Sections list breaking changes first, then behavior changes and
 new opt-in capabilities.
 
+## 3.2.3 (Groovy `compose {}` fix) — migrating from 3.2.2
+
+No action needed. Groovy build scripts that set `detekt { compose { ... } }` now get that config
+applied; check for new findings if it was silently ignored before. A `delegate.compose { ... }`
+workaround keeps working and can be reverted to `compose { ... }`.
+
 ## 3.2.2 (fallback instead of failure) — migrating from 3.2.1
 
 No action needed. A module with every type-resolution component ignored now runs the plain
