@@ -69,6 +69,7 @@ internal object Detekt2Engine : DetektEngine {
             task.jvmTarget.set(extension.jvmTarget.map { it.target })
             task.debug.set(extension.verboseLogging)
             task.config.from(detektConfig.additionalConfigs)
+            excludeGeneratedSources(task)
         }
         project.tasks.withType(Detekt::class.java).configureEach { task ->
             task.usesService(loggerProvider)
@@ -87,6 +88,10 @@ internal object Detekt2Engine : DetektEngine {
         // Detekt's own type-resolved tasks keep their compilation's sources and jvmTarget.
         project.tasks.named("detekt", Detekt::class.java).configure { task ->
             task.jvmTarget.set(extension.jvmTarget.map { it.target })
+            project.configureDetektSources(task, detektConfig)
+        }
+        // The baseline must cover the same files the plain task checks.
+        project.tasks.named("detektBaseline", DetektCreateBaselineTask::class.java).configure { task ->
             project.configureDetektSources(task, detektConfig)
         }
     }
