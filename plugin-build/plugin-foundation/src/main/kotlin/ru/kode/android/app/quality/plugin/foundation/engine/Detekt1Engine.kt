@@ -6,10 +6,8 @@ import io.gitlab.arturbosch.detekt.DetektPlugin
 import io.gitlab.arturbosch.detekt.extensions.DetektExtension
 import org.gradle.api.Project
 import org.gradle.api.Task
-import org.gradle.api.file.ConfigurableFileCollection
 import org.gradle.api.file.RegularFile
 import org.gradle.api.provider.Provider
-import org.gradle.api.tasks.SourceTask
 import org.gradle.api.tasks.TaskCollection
 import org.jetbrains.kotlin.gradle.dsl.KotlinAndroidExtension
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompileTool
@@ -82,25 +80,23 @@ internal object Detekt1Engine : DetektEngine {
             }
         }
         // Detekt's own type-resolved tasks keep their compilation's sources and jvmTarget.
-        project.tasks.named("detekt", Detekt::class.java).configure { task ->
+        val detekt = project.tasks.named("detekt", Detekt::class.java)
+        detekt.configure { task ->
             task.jvmTarget = extension.jvmTarget.get().target
             project.configureDetektSources(task, detektConfig)
         }
-        // The baseline must cover the same files the plain task checks.
+        // The baseline must cover exactly what the plain task checks: its filtered sources and classpath.
         project.tasks.named("detektBaseline", DetektCreateBaselineTask::class.java).configure { task ->
-            project.configureDetektSources(task, detektConfig)
+            task.setSource(detekt.map { it.source })
+            task.classpath.from(detekt.map { it.classpath })
         }
-        // Detekt 1.23 has no type-resolved tasks on AGP 9 built-in Kotlin, so the plain tasks
-        // get the classpath of the components analysed with type resolution. Delete with engine 1.
+        // Detekt 1.23 has no type-resolved tasks on AGP 9 built-in Kotlin, so the plain task
+        // gets the classpath of the components analysed with type resolution. Delete with engine 1.
         project.pluginManager.withPlugin(ANDROID_BASE_PLUGIN_ID) {
             val variants = mutableMapOf<String, String>()
             project.recordVariants(variants)
-
-            fun configureBuiltInKotlin(
-                task: SourceTask,
-                classpath: ConfigurableFileCollection,
-            ) {
-                if (!detektConfig.typeResolution.get() || !project.hasBuiltInKotlin()) return
+            project.tasks.named("detekt", Detekt::class.java).configure { task ->
+                if (!detektConfig.typeResolution.get() || !project.hasBuiltInKotlin()) return@configure
                 val ignoredBuildTypes = detektConfig.ignoredBuildTypes.get()
                 val ignoredComponents = detektConfig.ignoredTypeResolutionVariants.get()
                 val kotlin = project.extensions.findByType(KotlinAndroidExtension::class.java)
@@ -123,18 +119,14 @@ internal object Detekt1Engine : DetektEngine {
                             components,
                         ),
                     )
-                    return
+                    return@configure
                 }
                 compilations.forEach { compilation ->
-                    classpath.from(
+                    task.classpath.from(
                         compilation.output.classesDirs,
                         compilation.compileTaskProvider.map { (it as KotlinCompileTool).libraries },
                     )
                 }
-            }
-            project.tasks.named("detekt", Detekt::class.java).configure { configureBuiltInKotlin(it, it.classpath) }
-            project.tasks.named("detektBaseline", DetektCreateBaselineTask::class.java).configure {
-                configureBuiltInKotlin(it, it.classpath)
             }
         }
     }

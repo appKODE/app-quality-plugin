@@ -86,13 +86,15 @@ internal object Detekt2Engine : DetektEngine {
             }
         }
         // Detekt's own type-resolved tasks keep their compilation's sources and jvmTarget.
-        project.tasks.named("detekt", Detekt::class.java).configure { task ->
+        val detekt = project.tasks.named("detekt", Detekt::class.java)
+        detekt.configure { task ->
             task.jvmTarget.set(extension.jvmTarget.map { it.target })
             project.configureDetektSources(task, detektConfig)
         }
-        // The baseline must cover the same files the plain task checks.
+        // The baseline must cover exactly what the plain task checks: its filtered sources and classpath.
         project.tasks.named("detektBaseline", DetektCreateBaselineTask::class.java).configure { task ->
-            project.configureDetektSources(task, detektConfig)
+            task.setSource(detekt.map { it.source })
+            task.classpath.from(detekt.map { it.classpath })
         }
     }
 
