@@ -21,6 +21,7 @@ import ru.kode.android.app.quality.plugin.foundation.messages.typeResolutionFall
 import ru.kode.android.app.quality.plugin.foundation.recordVariants
 import ru.kode.android.app.quality.plugin.foundation.typeResolutionComponents
 import ru.kode.android.gradle.commons.logger.LoggerService
+import java.util.concurrent.Callable
 
 /** detekt 1.23 (`io.gitlab.arturbosch.detekt`), bundled with the plugin. */
 internal object Detekt1Engine : DetektEngine {
@@ -86,9 +87,10 @@ internal object Detekt1Engine : DetektEngine {
             project.configureDetektSources(task, detektConfig)
         }
         // The baseline must cover exactly what the plain task checks: its filtered sources and classpath.
+        // Callable, not detekt.map: a mapped TaskProvider would make the baseline depend on `detekt`.
         project.tasks.named("detektBaseline", DetektCreateBaselineTask::class.java).configure { task ->
-            task.setSource(detekt.map { it.source })
-            task.classpath.from(detekt.map { it.classpath })
+            task.setSource(Callable { detekt.get().source })
+            task.classpath.from(Callable { detekt.get().classpath })
         }
         // Detekt 1.23 has no type-resolved tasks on AGP 9 built-in Kotlin, so the plain task
         // gets the classpath of the components analysed with type resolution. Delete with engine 1.

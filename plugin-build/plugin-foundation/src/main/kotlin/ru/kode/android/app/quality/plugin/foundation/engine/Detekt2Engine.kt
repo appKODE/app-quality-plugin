@@ -15,6 +15,7 @@ import ru.kode.android.app.quality.plugin.foundation.extension.AppQualityFoundat
 import ru.kode.android.app.quality.plugin.foundation.messages.detekt2KotlinPluginTooOldMessage
 import ru.kode.android.app.quality.plugin.foundation.excludeGeneratedSources
 import ru.kode.android.gradle.commons.logger.LoggerService
+import java.util.concurrent.Callable
 
 /**
  * detekt 2 (`dev.detekt`). Only loaded once [resolveDetektEngine] has confirmed the consumer put
@@ -92,9 +93,10 @@ internal object Detekt2Engine : DetektEngine {
             project.configureDetektSources(task, detektConfig)
         }
         // The baseline must cover exactly what the plain task checks: its filtered sources and classpath.
+        // Callable, not detekt.map: a mapped TaskProvider would make the baseline depend on `detekt`.
         project.tasks.named("detektBaseline", DetektCreateBaselineTask::class.java).configure { task ->
-            task.setSource(detekt.map { it.source })
-            task.classpath.from(detekt.map { it.classpath })
+            task.setSource(Callable { detekt.get().source })
+            task.classpath.from(Callable { detekt.get().classpath })
         }
     }
 
