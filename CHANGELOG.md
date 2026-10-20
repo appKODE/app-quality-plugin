@@ -5,6 +5,15 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.2.4] - 2026-10-20
+
+### Fixed
+
+- `detektBaseline` now analyses the same files as `detekt`: `detekt.sources` include/exclude and the
+  generated-sources exclude apply to it too. Before, the baseline was written for detekt's default
+  sources, so `detekt` could still fail right after `detektBaseline`. On AGP 9 built-in Kotlin with
+  engine 1, `detektBaseline` also gets the type-resolution classpath of `detekt`.
+
 ## [3.2.3] - 2026-10-04
 
 ### Fixed

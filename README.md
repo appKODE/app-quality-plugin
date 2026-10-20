@@ -82,7 +82,7 @@ In root `build.gradle.kts`:
 
 ```kotlin
 plugins {
-    id("ru.kode.android.app-quality.foundation") version "3.2.3"
+    id("ru.kode.android.app-quality.foundation") version "3.2.4"
 }
 ```
 
@@ -113,7 +113,7 @@ put its Gradle plugin on the classpath in the root build and select engine 2:
 // root build.gradle.kts
 plugins {
     id("dev.detekt") version "2.0.0-alpha.6" apply false
-    id("ru.kode.android.app-quality.foundation") version "3.2.3"
+    id("ru.kode.android.app-quality.foundation") version "3.2.4"
 }
 ```
 

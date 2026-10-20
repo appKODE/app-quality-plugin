@@ -3,6 +3,12 @@
 Upgrade notes per release. Sections list breaking changes first, then behavior changes and
 new opt-in capabilities.
 
+## 3.2.4 (`detektBaseline` honours `detekt.sources`) — migrating from 3.2.3
+
+No action needed. A workaround that copies `detekt.source` into `detektBaseline` (e.g. in
+`gradle.projectsEvaluated { }`) can be deleted. Rerun `detektBaseline` if `detekt.sources` reaches
+files outside detekt's defaults: earlier baselines missed their findings.
+
 ## 3.2.3 (Groovy `compose {}` fix) — migrating from 3.2.2
 
 No action needed. Groovy build scripts that set `detekt { compose { ... } }` now get that config

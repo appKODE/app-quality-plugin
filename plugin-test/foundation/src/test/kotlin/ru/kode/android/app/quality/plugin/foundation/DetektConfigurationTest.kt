@@ -818,6 +818,42 @@ class DetektConfigurationTest {
         assertEquals(TaskOutcome.SUCCESS, withBaseline.task(":a:detekt")?.outcome)
     }
 
+    @ParameterizedTest(name = "engine {0}")
+    @ValueSource(ints = [1, 2])
+    fun `baseline honours detekt sources include`(engine: Int) {
+        projectDir.createQualityProject(
+            modules =
+                listOf(
+                    ModuleSpec(
+                        name = "a",
+                        type = ModuleType.KotlinJvm,
+                        detektKotlinConfigContent = MAX_LINE_60_ANY_ENGINE,
+                        // Outside detekt's own default sources, so only `sources.include` reaches it.
+                        kotlinSources = mapOf("src/legacy/java/ru/kode/test/Long.kt" to Sources.LONG_LINE_80),
+                    ),
+                ),
+            qualityConfig =
+                QualityConfig(
+                    detekt = DetektBlock(sources = SourcePatternsSlot(include = listOf("src/*/java/**"))),
+                    extraExtensionContent =
+                        "detekt.baseline.set(rootProject.layout.projectDirectory.file(\"detekt-baseline.xml\"))",
+                ),
+            detektEngine = engine,
+        )
+
+        val withoutBaseline = projectDir.runTaskWithFail(":a:detekt")
+        assertEquals(TaskOutcome.FAILED, withoutBaseline.task(":a:detekt")?.outcome)
+
+        projectDir.runTask(":a:detektBaseline")
+        assertTrue(
+            File(projectDir, "a/detekt-baseline.xml").readText().contains("Long.kt"),
+            "expected detektBaseline to analyse the same sources as detekt",
+        )
+
+        val withBaseline = projectDir.runTask(":a:detekt")
+        assertEquals(TaskOutcome.SUCCESS, withBaseline.task(":a:detekt")?.outcome)
+    }
+
     @Test
     fun `root-only baseline config resolves to a separate file per subproject`() {
         projectDir.createQualityProject(
