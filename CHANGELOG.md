@@ -5,6 +5,18 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.2.5] - 2026-11-09
+
+### Fixed
+
+- Type resolution on AGP 9 built-in Kotlin: types from the module's own generated code (SQLDelight,
+  KSP, an OpenAPI client under `build/`) resolve. Generated sources are not analysed, and the
+  compilation's `classesDirs` that detekt puts on the classpath lack the built-in Kotlin compile
+  output, so those types were unresolved and the task logged "There were N compiler errors found
+  during analysis". Type-resolved tasks now also get the compilation's compiled Kotlin classes:
+  engine 2's `detekt<Variant>`/`detektBaseline<Variant>`, engine 1's plain `detekt`/`detektBaseline`.
+  Findings in generated code stay excluded.
+
 ## [3.2.4] - 2026-10-20
 
 ### Fixed

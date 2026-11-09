@@ -10,6 +10,7 @@ import org.gradle.api.Task
 import org.gradle.api.file.RegularFile
 import org.gradle.api.provider.Provider
 import org.gradle.api.tasks.TaskCollection
+import ru.kode.android.app.quality.plugin.foundation.addOwnClasses
 import ru.kode.android.app.quality.plugin.foundation.configureDetektSources
 import ru.kode.android.app.quality.plugin.foundation.extension.AppQualityFoundationExtension
 import ru.kode.android.app.quality.plugin.foundation.messages.detekt2KotlinPluginTooOldMessage
@@ -71,11 +72,13 @@ internal object Detekt2Engine : DetektEngine {
             task.debug.set(extension.verboseLogging)
             task.config.from(detektConfig.additionalConfigs)
             excludeGeneratedSources(task)
+            project.addOwnClasses(task.classpath, task.name.removePrefix("detektBaseline"))
         }
         project.tasks.withType(Detekt::class.java).configureEach { task ->
             task.usesService(loggerProvider)
             task.debug.set(extension.verboseLogging)
             excludeGeneratedSources(task)
+            project.addOwnClasses(task.classpath, task.name.removePrefix("detekt"))
             // After detekt seeds the task config from the extension, so these merge last.
             task.config.from(detektConfig.additionalConfigs)
             task.reports {

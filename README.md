@@ -82,7 +82,7 @@ In root `build.gradle.kts`:
 
 ```kotlin
 plugins {
-    id("ru.kode.android.app-quality.foundation") version "3.2.4"
+    id("ru.kode.android.app-quality.foundation") version "3.2.5"
 }
 ```
 
@@ -113,7 +113,7 @@ put its Gradle plugin on the classpath in the root build and select engine 2:
 // root build.gradle.kts
 plugins {
     id("dev.detekt") version "2.0.0-alpha.6" apply false
-    id("ru.kode.android.app-quality.foundation") version "3.2.4"
+    id("ru.kode.android.app-quality.foundation") version "3.2.5"
 }
 ```
 
@@ -169,7 +169,12 @@ See [CHANGELOG.md](CHANGELOG.md) "Upgrading from 2.x".
 - `detekt.sources` applies only to the plain `detekt` task. detekt's own tasks analyse their
   compilation's source dirs, minus anything under the module's build directory (generated code
   such as KSP output or an OpenAPI client in `build/openapi`); exclude other generated code with
-  rule-set `excludes:` patterns in the detekt config.
+  rule-set `excludes:` patterns in the detekt config. Types from that generated code still
+  resolve: the module's own compiled Kotlin classes are on the classpath.
+- Members added by Kotlin compiler plugins (`@Serializable`'s `serializer()`, `@Parcelize`'s
+  `Parcelable` implementation) stay unresolved: detekt cannot load compiler plugins. Such modules
+  log "There were N compiler errors found during analysis"; rules that need those types may miss
+  findings there.
 
 ## Quick Start
 

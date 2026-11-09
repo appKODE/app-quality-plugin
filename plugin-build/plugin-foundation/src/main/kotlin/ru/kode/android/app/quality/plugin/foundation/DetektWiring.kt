@@ -2,14 +2,20 @@ package ru.kode.android.app.quality.plugin.foundation
 
 import org.gradle.api.GradleException
 import org.gradle.api.Project
+import org.gradle.api.file.ConfigurableFileCollection
+import org.gradle.api.file.Directory
 import org.gradle.api.file.RegularFile
 import org.gradle.api.provider.Provider
 import org.gradle.api.tasks.SourceTask
+import org.jetbrains.kotlin.gradle.dsl.KotlinAndroidExtension
+import org.jetbrains.kotlin.gradle.plugin.KotlinCompilation
+import org.jetbrains.kotlin.gradle.tasks.KotlinCompileTool
 import ru.kode.android.app.quality.plugin.foundation.config.DetektConfig
 import ru.kode.android.app.quality.plugin.foundation.config.PlatformDetektConfig
 import ru.kode.android.app.quality.plugin.foundation.config.hasNoUserAdditionsProvider
 import ru.kode.android.app.quality.plugin.foundation.engine.DetektEngine
 import ru.kode.android.app.quality.plugin.foundation.engine.DetektSettings
+import ru.kode.android.app.quality.plugin.foundation.engine.hasBuiltInKotlin
 import ru.kode.android.app.quality.plugin.foundation.extension.AppQualityFoundationExtension
 import ru.kode.android.app.quality.plugin.foundation.messages.bothDetektPluginsMessage
 import ru.kode.android.app.quality.plugin.foundation.messages.missingDetektConfigFileMessage
@@ -267,3 +273,33 @@ internal fun excludeGeneratedSources(task: SourceTask) {
         fileTreeElement.file.path.contains(generatedPathMarker) || fileTreeElement.file.startsWith(buildDir)
     }
 }
+
+/**
+ * Puts the classes of the Android compilation a type-resolved detekt task analyses (`detektDebug`,
+ * `detektBaselineDebugUnitTest`, ... named [taskSuffix] after its prefix) on its [classpath]:
+ * generated sources are excluded from analysis, so their types resolve only from there. detekt
+ * adds the compilation's `classesDirs`, which lack the Kotlin compile output on AGP 9 built-in Kotlin.
+ * Only there: without it the Kotlin plugin classes may not even be loadable.
+ */
+internal fun Project.addOwnClasses(
+    classpath: ConfigurableFileCollection,
+    taskSuffix: String,
+) {
+    if (!hasBuiltInKotlin()) return
+    val compilation =
+        extensions.findByType(KotlinAndroidExtension::class.java)
+            ?.target
+            ?.compilations
+            ?.findByName(taskSuffix.replaceFirstChar(Char::lowercase))
+            ?: return
+    // An explicit value: detekt sets its classpath as a convention, possibly after this runs.
+    classpath.setFrom(
+        compilation.output.classesDirs,
+        compilation.ownClasses(),
+        compilation.compileTaskProvider.map { (it as KotlinCompileTool).libraries },
+    )
+}
+
+/** The output directory of [this] compilation's Kotlin compile task. */
+internal fun KotlinCompilation<*>.ownClasses(): Provider<Directory> =
+    compileTaskProvider.flatMap { (it as KotlinCompileTool).destinationDirectory }

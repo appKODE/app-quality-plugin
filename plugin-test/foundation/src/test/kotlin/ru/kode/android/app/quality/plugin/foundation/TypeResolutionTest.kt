@@ -154,6 +154,49 @@ class TypeResolutionTest {
         assertEquals(expected, projectDir.findings("testuser", "UnnecessarySafeCall"))
     }
 
+    // Generated sources are not analysed, so their types must come from the module's own classes:
+    // with AGP 9 built-in Kotlin the compilation's classesDirs are empty.
+    @ParameterizedTest(name = "engine {0}, builtInKotlin {1}")
+    @CsvSource("1, false", "1, true", "2, false", "2, true")
+    fun `types from the module's own generated sources resolve`(
+        engine: Int,
+        builtInKotlin: Boolean,
+    ) {
+        val projectDir = projectDir(engine)
+        projectDir.createQualityProject(
+            modules =
+                listOf(
+                    ModuleSpec(
+                        name = "lib",
+                        type = ModuleType.AndroidLib,
+                        detektKotlinConfigContent = UNNECESSARY_SAFE_CALL_CONFIG,
+                        applyKotlinAndroidPlugin = !builtInKotlin,
+                        kotlinSources =
+                            mapOf(
+                                // Only `s` is non-null: unresolved, both calls are flagged or neither.
+                                "src/main/kotlin/sample/Main.kt" to
+                                    "package sample\n\nfun f() = Gen.s?.length\n\nfun h() = Gen.n?.length\n",
+                                // Would be a second finding if generated sources were analysed.
+                                "build/generated/fake/sample/Gen.kt" to
+                                    "package sample\n\nobject Gen {\n    val s: String = \"\"\n\n" +
+                                    "    val n: String? = null\n\n    fun g() = s?.length\n}\n",
+                            ),
+                        extraBuildContent = "android.sourceSets.main.kotlin.srcDir('build/generated/fake')",
+                    ),
+                ),
+            qualityConfig = QualityConfig(detekt = DetektBlock(typeResolution = true), extraExtensionContent = XML),
+            gradleProperties =
+                if (builtInKotlin) emptyMap() else mapOf("android.builtInKotlin" to "false", "android.newDsl" to "false"),
+            detektEngine = engine,
+        )
+        projectDir.initGit()
+
+        val result = projectDir.runTasks("pipelineCheck", "--continue", expectFailure = true)
+
+        assertEquals(1, projectDir.findings("lib", "UnnecessarySafeCall"))
+        assertTrue("compiler errors found during analysis" !in result.output, result.output)
+    }
+
     @ParameterizedTest(name = "engine {0}, androidTest {1}")
     @CsvSource("1, false", "1, true", "2, false", "2, true")
     fun `with type resolution on android modules run debug and its unit tests`(
