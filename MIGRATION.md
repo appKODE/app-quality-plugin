@@ -3,7 +3,7 @@
 Upgrade notes per release. Sections list breaking changes first, then behavior changes and
 new opt-in capabilities.
 
-## Unreleased (own generated types resolve) — migrating from 3.2.4
+## 3.2.5 (own generated types resolve) — migrating from 3.2.4
 
 No action needed. On AGP 9 built-in Kotlin with `detekt.typeResolution` on, types from a module's
 own generated code now resolve, so type-resolution rules may report findings they missed before.
